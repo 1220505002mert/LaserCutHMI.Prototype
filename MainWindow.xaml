@@ -1,0 +1,470 @@
+﻿<Window x:Class="LaserCutHMI.Prototype.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:models="clr-namespace:LaserCutHMI.Prototype.Models"
+        xmlns:conv="clr-namespace:LaserCutHMI.Prototype.Converters"
+        Title="LaserCut HMI" Height="900" Width="1280"
+        Loaded="Window_Loaded"
+        x:Name="Root">
+
+    <Window.Resources>
+        <conv:EnumToVisibilityConverter x:Key="EnumToVis"/>
+        <conv:PressureToBrushConverter x:Key="PressureToBrush"/>
+        <conv:BooleanToBrushConverter x:Key="BooleanToBrushConverter"/>
+
+        <Style x:Key="NavHeaderStyle" TargetType="Button">
+            <Setter Property="Background" Value="#f2f2f2"/>
+            <Setter Property="BorderBrush" Value="#d0d0d0"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style x:Key="BoolLampStyle" TargetType="Ellipse">
+            <Setter Property="Width" Value="14"/>
+            <Setter Property="Height" Value="14"/>
+            <Setter Property="Stroke" Value="#66000000"/>
+            <Setter Property="StrokeThickness" Value="1"/>
+            <Setter Property="Fill" Value="Red"/>
+            <Setter Property="Margin" Value="0,0,6,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding}" Value="True">
+                    <Setter Property="Fill" Value="LimeGreen"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <!-- header + sekmeler -->
+            <RowDefinition Height="*"/>
+            <!-- içerik -->
+            <RowDefinition Height="Auto"/>
+            <!-- alt buton bar -->
+            <RowDefinition Height="208"/>
+            <!-- events: %20 küçültüldü -->
+            <RowDefinition Height="Auto"/>
+            <!-- status -->
+        </Grid.RowDefinitions>
+
+        <!-- ÜST BAŞLIK + SEKMELER -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,8">
+            <TextBlock Text="MRT HMI — Student Prototype" FontSize="20" FontWeight="Bold" Margin="0,0,0,6"/>
+            <UniformGrid Rows="1" Columns="5">
+                <!-- Görünen ad değişti; CommandParameter aynen 'Giris' -->
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Görünüm"    Command="{Binding NavigateCmd}" CommandParameter="Giris"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Operatör"   Command="{Binding NavigateCmd}" CommandParameter="Operator"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Parametre"  Command="{Binding NavigateCmd}" CommandParameter="Parametre"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Üretim"     Command="{Binding NavigateCmd}" CommandParameter="Uretim"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Üretim Özeti" Command="{Binding NavigateCmd}" CommandParameter="Ozet"/>
+            </UniformGrid>
+        </StackPanel>
+
+        <!-- ========== SAYFA: GÖRÜNÜM (eski Giris) ========== -->
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Giris}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Hazırlık LED'leri + Hataları kontrol et -->
+            <GroupBox Header="Hazırlık Durumu" Grid.Column="0" Margin="0,0,8,0">
+                <DockPanel LastChildFill="True" Margin="8">
+                    <Button Content="Hataları kontrol et"
+                            Command="{Binding CheckAllCmd}"
+                            Padding="10,6" DockPanel.Dock="Top" HorizontalAlignment="Right" Margin="0,0,0,8"/>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding DoorsOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Kapılar kapalı"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding VentOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Havalandırma açık"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding TableOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Tabla sac yüklü"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding LaserOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Lazer başlık OK"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding ResonatorOnOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Rezonatör açık"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding GasOverallOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Seçili gaz bağlı &amp; %&gt;5"/>
+                        </StackPanel>
+                    </StackPanel>
+                </DockPanel>
+            </GroupBox>
+
+            <!-- Eksenler + Sıcaklıklar -->
+            <StackPanel Grid.Column="1">
+                <GroupBox Header="Eksenler" Margin="0,0,0,8">
+                    <StackPanel Margin="8">
+                        <TextBlock FontSize="16"><Run Text="X = "/><Run Text="{Binding XPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                        <TextBlock FontSize="16"><Run Text="Y = "/><Run Text="{Binding YPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                        <TextBlock FontSize="16"><Run Text="Z = "/><Run Text="{Binding ZPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                    </StackPanel>
+                </GroupBox>
+                <GroupBox Header="Sıcaklıklar">
+                    <StackPanel Margin="8">
+                        <TextBlock><Run Text="Başlık: "/><Run Text="{Binding HeadTemp, StringFormat={}{0:F1}}"/><Run Text=" °C"/></TextBlock>
+                        <TextBlock><Run Text="Makine içi: "/><Run Text="{Binding InsideTemp, StringFormat={}{0:F1}}"/><Run Text=" °C"/></TextBlock>
+                        <TextBlock><Run Text="Dış ortam: "/><Run Text="{Binding OutsideTemp, StringFormat={}{0:F1}}"/><Run Text=" °C"/></TextBlock>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+
+            <!-- Gazlar -->
+            <GroupBox Header="Gazlar (50 L)" Grid.Column="2">
+                <StackPanel Margin="8">
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                        <TextBlock Text="Air" Width="70"/>
+                        <TextBlock Text="{Binding Checks.Tanks[0].Connected}" Width="60"/>
+                        <ProgressBar Minimum="0" Maximum="100" Width="180" Height="12" Value="{Binding Checks.Tanks[0].LevelPercent}" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Checks.Tanks[0].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                        <TextBlock Text="Oxygen" Width="70"/>
+                        <TextBlock Text="{Binding Checks.Tanks[1].Connected}" Width="60"/>
+                        <ProgressBar Minimum="0" Maximum="100" Width="180" Height="12" Value="{Binding Checks.Tanks[1].LevelPercent}" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Checks.Tanks[1].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,8">
+                        <TextBlock Text="Nitrogen" Width="70"/>
+                        <TextBlock Text="{Binding Checks.Tanks[2].Connected}" Width="60"/>
+                        <ProgressBar Minimum="0" Maximum="100" Width="180" Height="12" Value="{Binding Checks.Tanks[2].LevelPercent}" Margin="8,0,0,0"/>
+                        <TextBlock Text="{Binding Checks.Tanks[2].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                    </StackPanel>
+                    <Button Content="Gaz tüplerini değiştir"
+                    Margin="0,8,0,0"
+                    Padding="10,6"
+                    Command="{Binding ReplaceGasCmd}"
+                    HorizontalAlignment="Left"/>
+                </StackPanel>
+            </GroupBox>
+            
+        </Grid>
+
+        <!-- ========== SAYFA: PARAMETRE (değişmedi) ========== -->
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Parametre}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="3*"/>
+            </Grid.ColumnDefinitions>
+
+            <GroupBox Header="Seçimler" Grid.Column="0" Margin="0,0,8,0">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Materyal:" VerticalAlignment="Center"/>
+                    <ComboBox Grid.Row="0" Grid.Column="1"
+                              ItemsSource="{Binding Materials}"
+                              SelectedItem="{Binding SelectedMaterial}" MinWidth="180"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Kalınlık (mm):" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <ComboBox Grid.Row="1" Grid.Column="1"
+                              ItemsSource="{Binding Thicknesses}"
+                              SelectedItem="{Binding SelectedThickness}" MinWidth="180" Margin="0,6,0,0"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Gaz:" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <ComboBox Grid.Row="2" Grid.Column="1"
+                              ItemsSource="{Binding Gases}"
+                              SelectedItem="{Binding SelectedGas}" MinWidth="180" Margin="0,6,0,0"/>
+                </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Ekstra Parametreler (düzenlenebilir)" Grid.Column="1">
+                <Grid Margin="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="160"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Power (W):" VerticalAlignment="Center"/>
+                    <TextBox   Grid.Row="0" Grid.Column="1"
+                               Text="{Binding CurrentParams.PowerW, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Frequency:" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <TextBox   Grid.Row="1" Grid.Column="1"
+                               Text="{Binding CurrentParams.Frequency, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Duty (%):" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <TextBox   Grid.Row="2" Grid.Column="1"
+                               Text="{Binding CurrentParams.Duty, UpdateSourceTrigger=PropertyChanged}" Margin="0,6,0,0"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="Pressure (bar):" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <TextBox   Grid.Row="3" Grid.Column="1"
+                               Text="{Binding CurrentParams.PressureBar, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F1}}"
+                               Margin="0,6,0,0"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Cutting Height (mm):" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                    <TextBox   Grid.Row="4" Grid.Column="1"
+                               Text="{Binding CurrentParams.CuttingHeightMm, UpdateSourceTrigger=PropertyChanged, StringFormat={}{0:F2}}"
+                               Margin="0,6,0,0"/>
+
+                    <!-- Yükle / Kaydet / İndir -->
+                    <StackPanel Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                        <Button Content="Yükle"  Command="{Binding LoadParamsCmd}"   Padding="10,6" Margin="0,0,8,0"/>
+                        <Button Content="Kaydet" Command="{Binding SaveParamsCmd}"   Padding="10,6" Margin="0,0,8,0"/>
+                        <Button Content="İndir"  Command="{Binding ExportParamsCmd}" Padding="10,6"/>
+                        
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+        <!-- ========== SAYFA: ÜRETİM (değişmedi; ekstra parametre yok) ========== -->
+        <Grid Grid.Row="1" Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Uretim}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="2.2*"/>
+                <ColumnDefinition Width="1.8*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- SOL: Program + Seçimler + Hazırlık -->
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                <GroupBox Header="Program" Margin="0,0,0,8">
+                    <StackPanel Margin="8">
+                        <WrapPanel>
+                            <Button Content="NC Aç..." Command="{Binding OpenNcCmd}" Padding="10,6" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding NcPath}" TextTrimming="CharacterEllipsis" ToolTip="{Binding NcPath}" VerticalAlignment="Center"/>
+                        </WrapPanel>
+                        <TextBlock Text="{Binding CurrentLine, StringFormat=Satır ...}"
+           Visibility="Collapsed"/>
+
+                        <ProgressBar Height="18" Margin="0,6,0,0"
+                                     Minimum="0"
+                                     Maximum="{Binding Path=NcLines.Count, Mode=OneWay}"
+                                     Value="{Binding CurrentLine}"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Seçimler" Margin="0,0,0,8">
+                    <Grid Margin="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Materyal:" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="0" Grid.Column="1"
+                                  ItemsSource="{Binding Materials}"
+                                  SelectedItem="{Binding SelectedMaterial}" MinWidth="180"/>
+
+                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Kalınlık (mm):" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                        <ComboBox Grid.Row="1" Grid.Column="1"
+                                  ItemsSource="{Binding Thicknesses}"
+                                  SelectedItem="{Binding SelectedThickness}" MinWidth="180" Margin="0,6,0,0"/>
+
+                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Gaz:" VerticalAlignment="Center" Margin="0,6,0,0"/>
+                        <ComboBox Grid.Row="2" Grid.Column="1"
+                                  ItemsSource="{Binding Gases}"
+                                  SelectedItem="{Binding SelectedGas}" MinWidth="180" Margin="0,6,0,0"/>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Hazırlık Durumu">
+                    <StackPanel Margin="8">
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding DoorsOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Kapılar kapalı"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding VentOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Havalandırma açık"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding TableOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Tabla sac yüklü"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding LaserOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Lazer başlık OK"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding ResonatorOnOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Rezonatör açık"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding GasOverallOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Seçili gaz bağlı &amp; %&gt;5"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding RuleOk}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text="Gaz/kalınlık kuralı uygun"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,2">
+                            <Ellipse DataContext="{Binding NcLoaded}" Style="{StaticResource BoolLampStyle}"/>
+                            <TextBlock Text=".nc dosyası seçildi"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+
+            <!-- ORTA: Canlı İzleme -->
+            <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                <GroupBox Header="Anlık Göstergeler" Margin="0,0,0,8">
+                    <Grid Margin="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Basınç (bar)" FontWeight="SemiBold"/>
+                            <ProgressBar Minimum="0" Maximum="15" Height="18"
+                                Value="{Binding PressureBar}" Margin="0,4,0,0"
+                                Foreground="{Binding PressureBar, Converter={StaticResource PressureToBrush}}"/>
+                            <TextBlock Text="{Binding PressureBar, StringFormat={}{0:F1} bar}" Foreground="Gray" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                            <TextBlock Text="Lazer Gücü (W)" FontWeight="SemiBold"/>
+                            <ProgressBar Minimum="0" Maximum="4000" Height="18" Value="{Binding LaserPowerLive}" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding LaserPowerLive, StringFormat={}{0} W}" Foreground="Gray" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </GroupBox>
+
+                <GroupBox Header="Kesim Hızı ve İlerleme" Margin="0,0,0,8">
+                    <StackPanel Margin="8">
+                        <TextBlock Text="{Binding CurrentSpeedMmSec, StringFormat=Anlık Hız: {0:F1} mm/sn}" FontSize="16"/>
+                        <TextBlock Text="{Binding JobCutMm, StringFormat=Toplam Kesilen: {0:F0} mm}" FontSize="16" Margin="0,4,0,0"/>
+                        <ProgressBar Height="18" Margin="0,6,0,0"
+                                     Minimum="0" Maximum="{Binding JobTargetMm}" Value="{Binding JobCutMm}"/>
+                        <TextBlock Text="{Binding JobElapsedSec, StringFormat=Süre: {0:F1} sn}" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Feed / Power Grafikleri">
+                    <StackPanel Margin="8">
+                        <Border BorderBrush="#DDD" BorderThickness="1" Padding="6" Margin="0,0,0,8">
+                            <Grid Width="600" Height="120">
+                                <Polyline Points="{Binding FeedPoints}" Stroke="SteelBlue" StrokeThickness="2"/>
+                            </Grid>
+                        </Border>
+                        <Border BorderBrush="#DDD" BorderThickness="1" Padding="6">
+                            <Grid Width="600" Height="120">
+                                <Polyline Points="{Binding PowerPoints}" Stroke="Firebrick" StrokeThickness="2"/>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+
+            <!-- SAĞ: Makine Durumu -->
+            <StackPanel Grid.Column="2">
+                <GroupBox Header="Eksenler" Margin="0,0,0,8">
+                    <StackPanel Margin="8">
+                        <TextBlock FontSize="16"><Run Text="X = "/><Run Text="{Binding XPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                        <TextBlock FontSize="16"><Run Text="Y = "/><Run Text="{Binding YPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                        <TextBlock FontSize="16"><Run Text="Z = "/><Run Text="{Binding ZPos, StringFormat={}{0:F2}}"/><Run Text=" mm"/></TextBlock>
+                        <TextBlock Text="Başlangıç 0,0,300 — kesim başında 50,50,0" Foreground="Gray" Margin="0,6,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Gazlar (50 L)">
+                    <StackPanel Margin="8">
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                            <TextBlock Text="Air" Width="70"/>
+                            <TextBlock Text="{Binding Checks.Tanks[0].Connected}" Width="60"/>
+                            <ProgressBar Minimum="0" Maximum="100" Width="160" Height="12" Value="{Binding Checks.Tanks[0].LevelPercent}" Margin="8,0,0,0"/>
+                            <TextBlock Text="{Binding Checks.Tanks[0].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                            <TextBlock Text="Oxygen" Width="70"/>
+                            <TextBlock Text="{Binding Checks.Tanks[1].Connected}" Width="60"/>
+                            <ProgressBar Minimum="0" Maximum="100" Width="160" Height="12" Value="{Binding Checks.Tanks[1].LevelPercent}" Margin="8,0,0,0"/>
+                            <TextBlock Text="{Binding Checks.Tanks[1].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,8">
+                            <TextBlock Text="Nitrogen" Width="70"/>
+                            <TextBlock Text="{Binding Checks.Tanks[2].Connected}" Width="60"/>
+                            <ProgressBar Minimum="0" Maximum="100" Width="160" Height="12" Value="{Binding Checks.Tanks[2].LevelPercent}" Margin="8,0,0,0"/>
+                            <TextBlock Text="{Binding Checks.Tanks[2].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </Grid>
+
+        <!-- ALT KONTROL BAR -->
+        <GroupBox Header="Makine / Kesim / Süreç" Grid.Row="2" Margin="0,8,0,8"
+          Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Uretim}">
+            <UniformGrid Rows="1" Columns="6" Margin="8">
+
+                <Button Content="Simülasyon" Command="{Binding StartSimCmd}" Padding="12,6"/>
+                <Button Content="Sıfırla"     Command="{Binding ResetCmd}"    Padding="12,6"/>
+                <Button Content="Başlat"      Command="{Binding StartCmd}"    Padding="12,6"/>
+                <Button Content="Durdur"      Command="{Binding StopCmd}"     Padding="12,6"/>
+                <Button Content="Devam Et"    Command="{Binding ResumeCmd}"   Padding="12,6"/>
+                <Button Content="Acil Durdurma" Command="{Binding EStopCmd}"  Padding="12,6" Background="#ffdddd"/>
+            </UniformGrid>
+        </GroupBox>
+
+        <!-- EVENTS / ALARMS -->
+        <GroupBox Grid.Row="3" Header="Events / Alarms" Margin="0,8,0,8">
+            <ListView ItemsSource="{Binding Events}" Margin="8"
+                      ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="Time" Width="170">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Timestamp, StringFormat=dd.MM.yyyy HH:mm:ss}"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="Level" Width="80" DisplayMemberBinding="{Binding Level}"/>
+                        <GridViewColumn Header="Source" Width="120" DisplayMemberBinding="{Binding Source}"/>
+                        <GridViewColumn Header="Message" Width="700" DisplayMemberBinding="{Binding Message}"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </GroupBox>
+
+        <!-- STATUS -->
+        <StatusBar Grid.Row="4">
+            <StatusBarItem>
+                <TextBlock Text="{Binding Status}"/>
+            </StatusBarItem>
+            <Separator/>
+            <StatusBarItem Content="{Binding NcPath}"/>
+        </StatusBar>
+
+    </Grid>
+</Window>
