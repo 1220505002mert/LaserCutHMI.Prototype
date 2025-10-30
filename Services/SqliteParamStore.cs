@@ -19,6 +19,9 @@ namespace LaserCutHMI.Prototype.Services
 
             _dbPath = Path.Combine(dir, "params.db");
             _connStr = $"Data Source={_dbPath}";
+
+            // Hata burada oluşuyordu, şimdi düzelttik
+            EnsureCreated();
         }
 
         public void EnsureCreated()
@@ -39,6 +42,31 @@ namespace LaserCutHMI.Prototype.Services
                   PRIMARY KEY(Material, Gas, ThicknessMm)
                 );";
             cmd.ExecuteNonQuery();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS ReportHistory (
+                  Id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                  Timestamp        TEXT NOT NULL,
+                  ReportType       TEXT NOT NULL,    -- 'Analiz', 'KPI' vb.
+                  ReportHash       TEXT NOT NULL,    -- Zincirlenmiş (Chain) Hash
+                  ContentHash      TEXT NOT NULL,    -- Sadece PDF içeriğinin hash'i
+                  MetadataHash     TEXT NOT NULL,    -- Filtrelerin vb. hash'i
+                  PreviousHash     TEXT              -- Bir önceki raporun ReportHash'i
+                );";
+            cmd.ExecuteNonQuery();
+
+            // YENİ EKLENDİ (ADIM 1)
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS UretimKayitlari (
+                  Id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                  [When]           TEXT NOT NULL,  -- DÜZELTME (1): 'When' köşeli parantez içine alındı
+                  NcName           TEXT,
+                  Material         INTEGER NOT NULL,
+                  Gas              INTEGER NOT NULL,
+                  ThicknessMm      INTEGER NOT NULL,
+                  DurationSec      REAL NOT NULL,
+                  CutLengthMm      REAL NOT NULL
+                );";
+            cmd.ExecuteNonQuery(); // Hata bu satırdaydı (line 58)
         }
 
         public CutParams Get(Material mat, Gas gas, int thicknessMm)
@@ -65,7 +93,7 @@ namespace LaserCutHMI.Prototype.Services
                     r.GetDouble(3),
                     r.GetDouble(4));
             }
-            return new CutParams(); // yoksa default
+            return new CutParams();
         }
 
         public void Save(Material mat, Gas gas, int thicknessMm, CutParams p)
@@ -114,6 +142,56 @@ namespace LaserCutHMI.Prototype.Services
             }
         }
 
+        public void LogProductionJob(JobLogEntry job)
+        {
+            using var conn = new SqliteConnection(_connStr);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO UretimKayitlari ([When], NcName, Material, Gas, ThicknessMm, DurationSec, CutLengthMm) -- DÜZELTME (2)
+                VALUES ($when, $nc, $mat, $gas, $thick, $dur, $len);";
+            cmd.Parameters.AddWithValue("$when", job.When.ToString("o"));
+            cmd.Parameters.AddWithValue("$nc", job.NcName ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("$mat", (int)job.Material);
+            cmd.Parameters.AddWithValue("$gas", (int)job.Gas);
+            cmd.Parameters.AddWithValue("$thick", job.ThicknessMm);
+            cmd.Parameters.AddWithValue("$dur", job.DurationSec);
+            cmd.Parameters.AddWithValue("$len", job.CutLengthMm);
+            cmd.ExecuteNonQuery();
+        }
+
+        public List<JobLogEntry> GetProductionHistory(DateTime from, DateTime to)
+        {
+            var list = new List<JobLogEntry>();
+            using var conn = new SqliteConnection(_connStr);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT [When], NcName, Material, Gas, ThicknessMm, DurationSec, CutLengthMm -- DÜZELTME (3)
+                FROM UretimKayitlari
+                WHERE [When] >= $from AND [When] <= $to -- DÜZELTME (4)
+                ORDER BY [When] DESC;";
+            cmd.Parameters.AddWithValue("$from", from.ToString("o"));
+            cmd.Parameters.AddWithValue("$to", to.ToString("o"));
+
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                list.Add(new JobLogEntry
+                {
+                    When = DateTime.Parse(r.GetString(0)),
+                    NcName = r.IsDBNull(1) ? "" : r.GetString(1),
+                    Material = (Material)r.GetInt32(2),
+                    Gas = (Gas)r.GetInt32(3),
+                    ThicknessMm = r.GetInt32(4),
+                    DurationSec = r.GetDouble(5),
+                    CutLengthMm = r.GetDouble(6)
+                });
+            }
+            return list;
+        }
+
+
         public void BulkUpsert(IEnumerable<ParamRow> rows)
         {
             using var conn = new SqliteConnection(_connStr);
@@ -147,5 +225,92 @@ namespace LaserCutHMI.Prototype.Services
         }
 
         public void SaveMany(IEnumerable<ParamRow> rows) => BulkUpsert(rows);
+
+        public string? GetLatestReportHash()
+        {
+            using var conn = new SqliteConnection(_connStr);
+        conn.Open();
+            var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+                SELECT ReportHash FROM ReportHistory
+                ORDER BY Timestamp DESC
+                LIMIT 1;";
+            
+            // ExecuteScalar, tek bir değer döndürür (veya tablo boşsa null)
+            return cmd.ExecuteScalar() as string;
+        }
+
+        // Yeni oluşturulan raporun hash'ini veritabanına kaydeder
+        public void SaveReportHistory(string reportType, string reportHash, string contentHash, string metadataHash, string? previousHash)
+        {
+            using var conn = new SqliteConnection(_connStr);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                INSERT INTO ReportHistory (Timestamp, ReportType, ReportHash, ContentHash, MetadataHash, PreviousHash)
+                VALUES ($time, $type, $reportHash, $contentHash, $metaHash, $prevHash);";
+
+            cmd.Parameters.AddWithValue("$time", DateTime.Now.ToString("o"));
+            cmd.Parameters.AddWithValue("$type", reportType);
+            cmd.Parameters.AddWithValue("$reportHash", reportHash);
+            cmd.Parameters.AddWithValue("$contentHash", contentHash);
+            cmd.Parameters.AddWithValue("$metaHash", metadataHash);
+            cmd.Parameters.AddWithValue("$prevHash", (object)previousHash ?? DBNull.Value);
+
+            cmd.ExecuteNonQuery();
+        }
+
+        public List<ReportHistoryEntry> GetReportHistoryList()
+        {
+            var list = new List<ReportHistoryEntry>();
+            using var conn = new SqliteConnection(_connStr);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT Id, Timestamp, ReportType 
+                FROM ReportHistory
+                ORDER BY Timestamp DESC;"; // En yeniden eskiye
+
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                list.Add(new ReportHistoryEntry
+                {
+                    Id = r.GetInt32(0),
+                    Timestamp = DateTime.Parse(r.GetString(1)),
+                    ReportType = r.GetString(2)
+                });
+            }
+            return list;
+        }
+
+        
+        public ReportHistoryEntry? GetReportHistoryEntry(int id)
+        {
+            using var conn = new SqliteConnection(_connStr);
+            conn.Open();
+            var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT Id, Timestamp, ReportType, ReportHash, ContentHash, MetadataHash, PreviousHash 
+                FROM ReportHistory
+                WHERE Id = $id;";
+            cmd.Parameters.AddWithValue("$id", id);
+
+            using var r = cmd.ExecuteReader();
+            if (r.Read())
+            {
+                return new ReportHistoryEntry
+                {
+                    Id = r.GetInt32(0),
+                    Timestamp = DateTime.Parse(r.GetString(1)),
+                    ReportType = r.GetString(2),
+                    ReportHash = r.GetString(3),
+                    ContentHash = r.GetString(4),
+                    MetadataHash = r.GetString(5),
+                    PreviousHash = r.IsDBNull(6) ? null : r.GetString(6)
+                };
+            }
+            return null; // Bulunamadı
+        }
     }
 }

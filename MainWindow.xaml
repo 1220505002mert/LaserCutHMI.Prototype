@@ -3,9 +3,30 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:models="clr-namespace:LaserCutHMI.Prototype.Models"
         xmlns:conv="clr-namespace:LaserCutHMI.Prototype.Converters"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         Title="LaserCut HMI" Height="900" Width="1280"
         Loaded="Window_Loaded"
         x:Name="Root">
+
+    <Window.InputBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveParamsCmd}"/>
+        <KeyBinding Gesture="Ctrl+O" Command="{Binding OpenNcCmd}"/>
+        <KeyBinding Gesture="F5" Command="{Binding CheckAllCmd}"/>
+
+        <KeyBinding Gesture="Ctrl+1" Command="{Binding NavigateCmd}" CommandParameter="Giris"/>
+        <KeyBinding Gesture="Ctrl+2" Command="{Binding NavigateCmd}" CommandParameter="Parametre"/>
+        <KeyBinding Gesture="Ctrl+3" Command="{Binding NavigateCmd}" CommandParameter="Uretim"/>
+        <KeyBinding Gesture="Ctrl+4" Command="{Binding NavigateCmd}" CommandParameter="Ozet"/>
+        <KeyBinding Gesture="Ctrl+5" Command="{Binding NavigateCmd}" CommandParameter="Yetkilendirme"/>
+
+        <KeyBinding Gesture="Ctrl+6" Command="{Binding NavigateCmd}" CommandParameter="Analiz"/>
+
+        <KeyBinding Gesture="Ctrl+7" Command="{Binding NavigateCmd}" CommandParameter="KPI"/>
+
+        <KeyBinding Gesture="Ctrl+8" Command="{Binding NavigateCmd}" CommandParameter="Dogrulama"/>
+
+    </Window.InputBindings>
+
 
     <Window.Resources>
         <conv:EnumToVisibilityConverter x:Key="EnumToVis"/>
@@ -55,17 +76,30 @@
         <!-- ÜST BAŞLIK + SEKMELER -->
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <TextBlock Text="MRT HMI — Student Prototype" FontSize="20" FontWeight="Bold" Margin="0,0,0,6"/>
-            <UniformGrid Rows="1" Columns="5">
+            <UniformGrid Rows="1" Columns="9">
                 <!-- Görünen ad değişti; CommandParameter aynen 'Giris' -->
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Görünüm"    Command="{Binding NavigateCmd}" CommandParameter="Giris"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Operatör"   Command="{Binding NavigateCmd}" CommandParameter="Operator"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Parametre"  Command="{Binding NavigateCmd}" CommandParameter="Parametre"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Üretim"     Command="{Binding NavigateCmd}" CommandParameter="Uretim"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Üretim Özeti" Command="{Binding NavigateCmd}" CommandParameter="Ozet"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Yetki" 
+                        Background="#FFFBF0" BorderBrush="#E6A21F" 
+                        Command="{Binding NavigateCmd}" CommandParameter="Yetkilendirme"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Analiz" 
+                        Background="#F0F8FF" BorderBrush="#B0C4DE"
+                        Command="{Binding NavigateCmd}" CommandParameter="Analiz"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="KPI" 
+                        Background="#F5F5DC" BorderBrush="#D2B48C"
+                        Command="{Binding NavigateCmd}" CommandParameter="KPI"/>
+                <Button Style="{StaticResource NavHeaderStyle}" Content="Doğrulama" 
+                        Background="#E6E6FA" BorderBrush="#9370DB"
+                        Command="{Binding NavigateCmd}" CommandParameter="Dogrulama"/>
+
             </UniformGrid>
         </StackPanel>
 
-        <!-- ========== SAYFA: GÖRÜNÜM (eski Giris) ========== -->
+        <!-- ========== SAYFA: GÖRÜNÜM  ========== -->
         <Grid Grid.Row="1"
               Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Giris}">
             <Grid.ColumnDefinitions>
@@ -155,7 +189,7 @@
                     HorizontalAlignment="Left"/>
                 </StackPanel>
             </GroupBox>
-            
+
         </Grid>
 
         <!-- ========== SAYFA: PARAMETRE (değişmedi) ========== -->
@@ -195,7 +229,7 @@
                 </Grid>
             </GroupBox>
 
-            <GroupBox Header="Ekstra Parametreler (düzenlenebilir)" Grid.Column="1">
+            <GroupBox Header="Ekstra Parametreler " Grid.Column="1">
                 <Grid Margin="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="160"/>
@@ -238,7 +272,7 @@
                         <Button Content="Yükle"  Command="{Binding LoadParamsCmd}"   Padding="10,6" Margin="0,0,8,0"/>
                         <Button Content="Kaydet" Command="{Binding SaveParamsCmd}"   Padding="10,6" Margin="0,0,8,0"/>
                         <Button Content="İndir"  Command="{Binding ExportParamsCmd}" Padding="10,6"/>
-                        
+
                     </StackPanel>
                 </Grid>
             </GroupBox>
@@ -422,6 +456,343 @@
             </StackPanel>
         </Grid>
 
+        <Grid Grid.Row="1" Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Uretim}">
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Ozet}">
+            <DockPanel Margin="12">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Başlangıç Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <DatePicker SelectedDate="{Binding OzetBaslangic}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <TextBlock Text="Bitiş Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <DatePicker SelectedDate="{Binding OzetBitis}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <Button Content="Veri Getir" 
+                            Command="{Binding LoadOzetDataCmd}" 
+                            Padding="12,6" FontWeight="Bold"/>
+                </StackPanel>
+
+                <UniformGrid DockPanel.Dock="Top" Rows="1" Columns="2" Margin="0,10,0,10">
+                    <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="TOPLAM KESİM (mm)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                            <TextBlock Text="{Binding OzetToplamKesim, StringFormat={}{0:F0} mm}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="ORTALAMA SÜRE (sn)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                            <TextBlock Text="{Binding OzetOrtalamaSure, StringFormat={}{0:F1} sn}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+
+                <GroupBox Header="Geçmiş Üretim Kayıtları" Margin="0,10,0,0">
+                    <ListView ItemsSource="{Binding OzetUretimKayitlari}"
+                              ScrollViewer.VerticalScrollBarVisibility="Auto">
+                        <ListView.View>
+                            <GridView>
+                                <GridViewColumn Header="Zaman" Width="170">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding When, StringFormat=dd.MM.yyyy HH:mm:ss}"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="NC Dosyası" Width="200" DisplayMemberBinding="{Binding NcName}"/>
+                                <GridViewColumn Header="Malzeme" Width="120" DisplayMemberBinding="{Binding Material}"/>
+                                <GridViewColumn Header="Gaz" Width="100" DisplayMemberBinding="{Binding Gas}"/>
+                                <GridViewColumn Header="Kalınlık" Width="70" DisplayMemberBinding="{Binding ThicknessMm, StringFormat={}{0} mm}"/>
+                                <GridViewColumn Header="Süre (sn)" Width="80" DisplayMemberBinding="{Binding DurationSec, StringFormat={}{0:F1}}"/>
+                                <GridViewColumn Header="Kesim (mm)" Width="90" DisplayMemberBinding="{Binding CutLengthMm, StringFormat={}{0:F0}}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </GroupBox>
+
+            </DockPanel>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Yetkilendirme}">
+            <StackPanel Width="450" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20">
+                <GroupBox Header="Yetkili Oturumu Açma" Padding="15">
+                    <StackPanel>
+                        <TextBlock Text="Kritik parametreleri (güç, frekans vb.) değiştirmek için lütfen 'Servis' veya 'Admin' erişim kodunuzu girin." 
+                                   TextWrapping="Wrap" Margin="0,0,0,15"/>
+
+                        <GroupBox Header="1. Adım: Kod İste" Margin="0,0,0,10" Padding="10">
+                            <UniformGrid Columns="2" Rows="1">
+                                <Button Content="Admin Kodu İste"
+                                        Command="{Binding RequestAdminCodeCmd}"
+                                        Background="LightYellow" Margin="0,0,5,0" Padding="8"/>
+                                <Button Content="Servis Kodu İste"
+                                        Command="{Binding RequestServisCodeCmd}"
+                                        Background="LightCyan" Margin="5,0,0,0" Padding="8"/>
+                            </UniformGrid>
+                        </GroupBox>
+
+                        <TextBlock Text="Mevcut Durum:" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding SessionStatusText}" Margin="0,5,0,15" MinHeight="30" TextWrapping="Wrap" Background="#eee" Padding="5"/>
+
+                        <TextBlock Text="Erişim Kodu:" Margin="0,10,0,0" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding AccessCode, UpdateSourceTrigger=PropertyChanged}" 
+                                 FontSize="16" Margin="0,5,0,15" Padding="5"/>
+
+                        <Button Content="Giriş Yap (Kodu Doğrula)" 
+                                Command="{Binding ValidateCodeCmd}" 
+                                Padding="10,8" FontWeight="Bold" Background="LightSkyBlue"/>
+
+                        <Button Content="Oturumu Kapat (Operator Rolüne Dön)" 
+                                Command="{Binding LogoutCmd}" 
+                                Padding="10,8" Margin="0,10,0,0" Background="LightSalmon"/>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Analiz}">
+            <DockPanel Margin="12">
+                <StackPanel DockPanel.Dock="Top" Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Başlangıç Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <DatePicker SelectedDate="{Binding AnalizBaslangic}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <TextBlock Text="Bitiş Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <DatePicker SelectedDate="{Binding AnalizBitis}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <Button Content="Veri Getir" 
+                                Command="{Binding LoadAnalizDataCmd}" 
+                                Padding="12,6" FontWeight="Bold" Margin="0,0,5,0"/>
+                        <Button Content="PDF Rapor Al" 
+                                Command="{Binding ExportAnalizPdfCmd}" 
+                                Padding="12,6" Background="LightGreen"/>
+                    </StackPanel>
+
+                    <UniformGrid Rows="1" Columns="3" Margin="0,10,0,10">
+                        <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="TOPLAM İŞ" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                                <TextBlock Text="{Binding AnalizToplamIs}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="TOPLAM KESİM (mm)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                                <TextBlock Text="{Binding AnalizToplamKesim, StringFormat={}{0:F0} mm}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                            <StackPanel>
+                                <TextBlock Text="ORTALAMA SÜRE (sn)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                                <TextBlock Text="{Binding AnalizOrtalamaSure, StringFormat={}{0:F1} sn}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </StackPanel>
+
+                <TabControl Margin="0,10,0,0">
+                    <TabItem Header="Zaman Serisi (İş Süreleri)">
+                        <lvc:CartesianChart
+                            Series="{Binding AnalizZamanSerisi}"
+                            XAxes="{Binding AnalizXAxis}"
+                            Margin="10"/>
+                    </TabItem>
+                    <TabItem Header="Malzeme Kırılımı (Toplam Kesim)">
+                        <lvc:PieChart
+                            Series="{Binding AnalizMalzemeKirilim}"
+                            Margin="10"/>
+                    </TabItem>
+                </TabControl>
+            </DockPanel>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=KPI}">
+            <StackPanel Margin="12">
+                <Button Content="KPI Verilerini Hesapla (Simülasyon)" 
+                        Command="{Binding LoadKpiDataCmd}" 
+                        Padding="12,6" FontWeight="Bold" HorizontalAlignment="Left" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Bakım Anahtar Performans Göstergeleri (Son 30 Gün)" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                <UniformGrid Rows="1" Columns="3" Margin="0,10,0,10">
+                    <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="KULLANILABİLİRLİK (AVAILABILITY)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                            <TextBlock Text="{Binding KpiAvailability, StringFormat={}{0:F1} %}" FontSize="28" FontWeight="Bold" Foreground="#006400"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="ARIZALAR ARASI SÜRE (MTBF)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                            <TextBlock Text="{Binding KpiMtbf, StringFormat={}{0:F2} saat}" FontSize="28" FontWeight="Bold" Foreground="#111"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#f0f0f0" BorderBrush="#ccc" BorderThickness="1" Margin="5" Padding="15">
+                        <StackPanel>
+                            <TextBlock Text="ORTALAMA ONARIM SÜRESİ (MTTR)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                            <TextBlock Text="{Binding KpiMttr, StringFormat={}{0:F2} saat}" FontSize="28" FontWeight="Bold" Foreground="#8B0000"/>
+                        </StackPanel>
+                    </Border>
+                </UniformGrid>
+            </StackPanel>
+        </Grid>
+
+        <Grid Grid.Row="1"
+              Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Dogrulama}">
+            <Grid Margin="15" MaxWidth="1000">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <GroupBox Header="İmzalı Rapor Doğrulama" Grid.Row="0" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Bu ekran, oluşturulmuş PDF raporlarının değiştirilmediğini (bütünlüğünü) ve raporlama zincirinin tutarlı olduğunu doğrular." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="İmza Listesini Yenile" 
+                                    Command="{Binding LoadVerifyReportListCmd}" 
+                                    Padding="10,6" FontWeight="SemiBold"/>
+                            <ComboBox ItemsSource="{Binding VerifyReportList}" 
+                                      SelectedItem="{Binding VerifySelectedReport}"
+                                      MinWidth="300" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <Button Content="Doğrulamak için PDF Dosyası Seç..." 
+                                Command="{Binding VerifySelectedFileCmd}" 
+                                Padding="10,8" FontWeight="Bold" Background="LightSkyBlue" Margin="0,15,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Çıktı Göstergeleri" Grid.Row="1" Margin="0,15,0,0" Padding="10">
+                    <UniformGrid Rows="1" Columns="2">
+
+                        <Border BorderBrush="Gray" BorderThickness="1" Margin="5" Padding="15">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding VerifyHashUyumlu}" Value="True">
+                                            <Setter Property="Background" Value="#E0FFE0"/>
+                                            <Setter Property="BorderBrush" Value="Green"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding VerifyHashUyumlu}" Value="False">
+                                            <Setter Property="Background" Value="#FFF0F0"/>
+                                            <Setter Property="BorderBrush" Value="Red"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <StackPanel>
+                                <TextBlock Text="Dosya Bütünlüğü (Hash Uyumu)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                                <TextBlock FontSize="24" FontWeight="Bold" Foreground="Gray">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Test Edilmedi"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding VerifyHashUyumlu}" Value="True">
+                                                    <Setter Property="Text" Value="GEÇTİ (Uyumlu)"/>
+                                                    <Setter Property="Foreground" Value="Green"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding VerifyHashUyumlu}" Value="False">
+                                                    <Setter Property="Text" Value="KALDI (Değiştirilmiş!)"/>
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border BorderBrush="Gray" BorderThickness="1" Margin="5" Padding="15">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="White"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding VerifyZincirTutarlı}" Value="True">
+                                            <Setter Property="Background" Value="#E0FFE0"/>
+                                            <Setter Property="BorderBrush" Value="Green"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding VerifyZincirTutarlı}" Value="False">
+                                            <Setter Property="Background" Value="#FFF0F0"/>
+                                            <Setter Property="BorderBrush" Value="Red"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+
+                            <StackPanel>
+                                <TextBlock Text="Rapor Zinciri (Bağlantı)" FontSize="14" FontWeight="SemiBold" Foreground="#555"/>
+                                <TextBlock FontSize="24" FontWeight="Bold" Foreground="Gray">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="Test Edilmedi"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding VerifyZincirTutarlı}" Value="True">
+                                                    <Setter Property="Text" Value="GEÇTİ (Tutarlı)"/>
+                                                    <Setter Property="Foreground" Value="Green"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding VerifyZincirTutarlı}" Value="False">
+                                                    <Setter Property="Text" Value="KALDI (Kırık Zincir!)"/>
+                                                    <Setter Property="Foreground" Value="Red"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </UniformGrid>
+                </GroupBox>
+
+                <GroupBox Header="Doğrulama Sonucu" Grid.Row="2" Margin="0,15,0,0">
+                    <TextBlock Text="{Binding VerifyResultText}" 
+                               FontSize="16" TextWrapping="Wrap" 
+                               Padding="10" Background="#eee"/>
+                </GroupBox>
+
+            </Grid>
+
+            <Popup IsOpen="{Binding IsFlyoutOpen}"
+               Placement="Right"
+               AllowsTransparency="True"
+               PopupAnimation="Slide">
+                <Border Background="WhiteSmoke" BorderBrush="Gray" BorderThickness="1" MinWidth="300" Margin="10">
+                    <Border.Effect>
+                        <DropShadowEffect ShadowDepth="2" Color="Gray" Opacity="0.5" BlurRadius="5"/>
+                    </Border.Effect>
+
+                    <Grid Margin="10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                            <TextBlock Text="Hızlı Erişim Kısayolları" FontWeight="Bold" Margin="0,0,0,10"/>
+                            <Button Content="Verileri Yenile" Command="{Binding LoadAnalizDataCmd}" Margin="0,3"/>
+                            <Button Content="PDF Dışa Aktar" Command="{Binding ExportAnalizPdfCmd}" Margin="0,3"/>
+                            <Button Content="Parametre Kaydet" Command="{Binding SaveParamsCmd}" Margin="0,3"/>
+                            <Separator Margin="0,5"/>
+                            <Button Content="Üretimi Başlat" Command="{Binding StartCmd}" Margin="0,3" Background="LightGreen"/>
+                            <Button Content="Üretimi Durdur" Command="{Binding StopCmd}" Margin="0,3" Background="LightSalmon"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                            <TextBlock Text="Makine Joystick" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center"/>
+                            <Border BorderBrush="Black" BorderThickness="1" Background="LightGray" Width="150" Height="150" CornerRadius="75" Margin="10">
+                                <Ellipse Width="50" Height="50" Fill="DarkGray" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <TextBlock Text="X: 0.00 Y: 0.00" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Popup>
+        </Grid>
+
         <!-- ALT KONTROL BAR -->
         <GroupBox Header="Makine / Kesim / Süreç" Grid.Row="2" Margin="0,8,0,8"
           Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Uretim}">
@@ -464,6 +835,12 @@
             </StatusBarItem>
             <Separator/>
             <StatusBarItem Content="{Binding NcPath}"/>
+
+            <StatusBarItem HorizontalAlignment="Right">
+                <Button Content="Operatör Paneli ☰" 
+                        Command="{Binding ToggleFlyoutCmd}" 
+                        FontWeight="Bold" Background="AliceBlue"/>
+            </StatusBarItem>
         </StatusBar>
 
     </Grid>

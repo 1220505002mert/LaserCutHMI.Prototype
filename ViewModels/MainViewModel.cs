@@ -1,4 +1,4 @@
-﻿using LaserCutHMI.Prototype.Commands;
+﻿using LaserCutHMI.Prototype.ViewModels;
 using LaserCutHMI.Prototype.Models;
 using LaserCutHMI.Prototype.Services;
 using Microsoft.Win32;
@@ -7,10 +7,17 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using SkiaSharp;
+using LiveChartsCore.Measure;
 
 namespace LaserCutHMI.Prototype.ViewModels
 {
@@ -39,6 +46,14 @@ namespace LaserCutHMI.Prototype.ViewModels
         private readonly ImportExportService _impex;
         private readonly SystemCheckService _checkService;
         private readonly PreferencesService _prefs;
+
+        private readonly IAuditLog _auditLog;
+        private readonly IEmailService _emailService;
+        private readonly ISessionService _sessionService;
+
+        private readonly Debouncer _analizDebouncer = new Debouncer(TimeSpan.FromMilliseconds(500));
+
+        private readonly ICache _cache = new MemoryCacheLite();
 
         private AppPage _selectedPage = AppPage.Giris;
         public AppPage SelectedPage
@@ -119,7 +134,6 @@ namespace LaserCutHMI.Prototype.ViewModels
         private double _jobElapsedSec;
         public double JobElapsedSec { get => _jobElapsedSec; set => Set(ref _jobElapsedSec, value); }
 
-        // XAML’de Maximum="{Binding JobTargetMm}" kullanılıyor → ekledik (YENİ)
         private double _jobTargetMm = 2000;
         public double JobTargetMm { get => _jobTargetMm; set => Set(ref _jobTargetMm, value); }
 
@@ -130,6 +144,68 @@ namespace LaserCutHMI.Prototype.ViewModels
         public string? NcPath { get => _ncPath; set => Set(ref _ncPath, value); }
 
         public ObservableCollection<string> NcLines { get; } = new();
+
+        
+        public DateTime OzetBaslangic { get; set; } = DateTime.Now.AddDays(-7);
+        public DateTime OzetBitis { get; set; } = DateTime.Now;
+        private double _ozetToplamKesim;
+        public double OzetToplamKesim { get => _ozetToplamKesim; set => Set(ref _ozetToplamKesim, value); }
+        private double _ozetOrtalamaSure;
+        public double OzetOrtalamaSure { get => _ozetOrtalamaSure; set => Set(ref _ozetOrtalamaSure, value); }
+        public ObservableCollection<JobLogEntry> OzetUretimKayitlari { get; } = new();
+
+
+        private DateTime _analizBaslangic = DateTime.Now.AddDays(-30);
+        public DateTime AnalizBaslangic
+        {
+            get => _analizBaslangic;
+            set { if (Set(ref _analizBaslangic, value)) LoadAnalizData(true); } // Değiştiğinde sorguyu tetikle
+        }
+
+        private DateTime _analizBitis = DateTime.Now;
+        public DateTime AnalizBitis
+        {
+            get => _analizBitis;
+            set { if (Set(ref _analizBitis, value)) LoadAnalizData(true); } // Değiştiğinde sorguyu tetikle
+        }
+
+        private double _analizToplamKesim;
+        public double AnalizToplamKesim { get => _analizToplamKesim; set => Set(ref _analizToplamKesim, value); }
+        private double _analizOrtalamaSure;
+        public double AnalizOrtalamaSure { get => _analizOrtalamaSure; set => Set(ref _analizOrtalamaSure, value); }
+        private int _analizToplamIs;
+        public int AnalizToplamIs { get => _analizToplamIs; set => Set(ref _analizToplamIs, value); }
+
+        public ObservableCollection<ISeries> AnalizZamanSerisi { get; set; } = new();
+        public ObservableCollection<ISeries> AnalizMalzemeKirilim { get; set; } = new();
+        public Axis[] AnalizXAxis { get; set; } = { new Axis { Labeler = value => new DateTime((long)value).ToString("dd MMM") } };
+
+        private double _kpiMtbf;
+        public double KpiMtbf { get => _kpiMtbf; set => Set(ref _kpiMtbf, value); } // Arızalar Arası Ortalama Süre (saat)
+        private double _kpiMttr;
+        public double KpiMttr { get => _kpiMttr; set => Set(ref _kpiMttr, value); } // Ortalama Onarım Süresi (saat)
+        private double _kpiAvailability;
+        public double KpiAvailability { get => _kpiAvailability; set => Set(ref _kpiAvailability, value); } // Kullanılabilirlik (%)
+
+        // "Rapor Seç" ComboBox'ı için liste
+        public ObservableCollection<ReportHistoryEntry> VerifyReportList { get; } = new();
+
+        // ComboBox'ta seçilen rapor
+        private ReportHistoryEntry? _verifySelectedReport;
+        public ReportHistoryEntry? VerifySelectedReport { get => _verifySelectedReport; set => Set(ref _verifySelectedReport, value); }
+
+        
+        private string _verifyResultText = "Lütfen doğrulamak için bir PDF rapor dosyası seçin.";
+        public string VerifyResultText { get => _verifyResultText; set => Set(ref _verifyResultText, value); }
+
+        private bool? _verifyHashUyumlu;
+        public bool? VerifyHashUyumlu { get => _verifyHashUyumlu; set => Set(ref _verifyHashUyumlu, value); } 
+
+        private bool? _verifyZincirTutarlı;
+        public bool? VerifyZincirTutarlı { get => _verifyZincirTutarlı; set => Set(ref _verifyZincirTutarlı, value); }
+
+        private bool _isFlyoutOpen;
+        public bool IsFlyoutOpen { get => _isFlyoutOpen; set => Set(ref _isFlyoutOpen, value); }
 
         private bool _doorsOk, _ventOk, _tableOk, _laserOk, _resonatorOnOk, _gasOverallOk, _ruleOk, _ncLoaded;
         public bool DoorsOk { get => _doorsOk; set => Set(ref _doorsOk, value); }
@@ -158,6 +234,29 @@ namespace LaserCutHMI.Prototype.ViewModels
         public ICommand ResetCmd { get; }
         public ICommand EStopCmd { get; }
 
+        public ICommand LoadOzetDataCmd { get; }
+
+        public ICommand ValidateCodeCmd { get; }
+        public ICommand LogoutCmd { get; }
+
+        private string _sessionStatusText = "Durum: Oturum kapalı. (Varsayılan: Operator)";
+        public string SessionStatusText { get => _sessionStatusText; set => Set(ref _sessionStatusText, value); }
+
+        public string AccessCode { get; set; } = string.Empty;
+
+        public ICommand LoadAnalizDataCmd { get; }
+        public ICommand ExportAnalizPdfCmd { get; }
+
+        public ICommand LoadKpiDataCmd { get; }
+
+        public ICommand LoadVerifyReportListCmd { get; }
+        public ICommand VerifySelectedFileCmd { get; }
+
+        public ICommand ToggleFlyoutCmd { get; }
+
+        public ICommand RequestAdminCodeCmd { get; }
+        public ICommand RequestServisCodeCmd { get; }
+
         public MainViewModel()
         {
             _paramStore = new SqliteParamStore();
@@ -165,11 +264,14 @@ namespace LaserCutHMI.Prototype.ViewModels
             _checkService = new SystemCheckService();
             _prefs = new PreferencesService();
 
+            _auditLog = new AuditLogService();
+            _emailService = new EmailService(); 
+            _sessionService = new SessionService(_emailService, _auditLog);
+
             SelectedMaterial = Material.StainlessSteel;
             SelectedGas = Gas.Nitrogen;
             SelectedThickness = 3;
 
-            // %90 OK başlangıç
             DoorsOk = _rng.NextDouble() < 0.90;
             VentOk = _rng.NextDouble() < 0.90;
             TableOk = _rng.NextDouble() < 0.90;
@@ -186,7 +288,9 @@ namespace LaserCutHMI.Prototype.ViewModels
 
             NavigateCmd = new RelayCommand(NavigateTo);
             OpenNcCmd = new RelayCommand(_ => OpenNc());
-            SaveParamsCmd = new RelayCommand(_ => SaveParams());
+
+            SaveParamsCmd = new RelayCommand(_ => SaveParams(), _ => CanEditParameters());
+
             LoadParamsCmd = new RelayCommand(_ => LoadParamsFromFile());
             ExportParamsCmd = new RelayCommand(_ => ExportParamsToFile());
             CheckAllCmd = new RelayCommand(_ => CheckAll());
@@ -198,11 +302,40 @@ namespace LaserCutHMI.Prototype.ViewModels
             ResetCmd = new RelayCommand(_ => ResetAll());
             EStopCmd = new RelayCommand(_ => EmergencyStop());
 
+            LoadOzetDataCmd = new RelayCommand(_ => LoadOzetData());
+
+            ValidateCodeCmd = new RelayCommand(_ => ValidateCode());
+            LogoutCmd = new RelayCommand(_ => DoLogout());
+
+            LoadAnalizDataCmd = new RelayCommand(_ => LoadAnalizData());
+            ExportAnalizPdfCmd = new RelayCommand(_ => ExportAnalizToPdf());
+
+            LoadKpiDataCmd = new RelayCommand(_ => LoadKpiData());
+
+            LoadVerifyReportListCmd = new RelayCommand(_ => LoadVerifyReportList());
+            VerifySelectedFileCmd = new RelayCommand(_ => VerifySelectedFile());
+
+            ToggleFlyoutCmd = new RelayCommand(_ => IsFlyoutOpen = !IsFlyoutOpen); // Sadece açık/kapalı yap
+
+            RequestAdminCodeCmd = new RelayCommand(_ => RequestCode(UserRole.Admin));
+            RequestServisCodeCmd = new RelayCommand(_ => RequestCode(UserRole.Servis));
+
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(TickSeconds) };
             _timer.Tick += Timer_Tick;
 
             UpdateDerived();
             AddEvent("Checks", "INFO", "Uygulama başlatıldı.");
+
+            _auditLog.Log("INFO", "App.Start", "Uygulama başlatıldı.");
+
+            LoadAnalizData();
+        }
+
+        private bool CanEditParameters()
+        {
+            return _sessionService.IsValid &&
+                   (_sessionService.CurrentRole == UserRole.Admin ||
+                    _sessionService.CurrentRole == UserRole.Servis);
         }
 
         private void NavigateTo(object? parameter)
@@ -243,6 +376,20 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void SaveParams()
         {
+            if (!CanEditParameters())
+            {
+                _auditLog.Log(
+                    level: "DENY",
+                    source: "Params.Save",
+                    message: "Yetkisiz parametre kaydetme denemesi.",
+                    user: _sessionService.CurrentUser,
+                    role: _sessionService.CurrentRole
+                );
+
+                AddEvent("Params", "ERROR", "Parametre kaydetme yetkiniz yok. Lütfen 'Yetki' sayfasından giriş yapın.");
+                return;
+            }
+
             var p = new CutParams
             {
                 PowerW = CurrentParams.PowerW,
@@ -252,7 +399,16 @@ namespace LaserCutHMI.Prototype.ViewModels
                 CuttingHeightMm = CurrentParams.CuttingHeightMm
             };
             _paramStore.Save(SelectedMaterial, SelectedGas, SelectedThickness, p);
+
             AddEvent("Params", "INFO", "Parametreler kaydedildi.");
+
+            _auditLog.Log(
+                level: "OK",
+                source: "Params.Save",
+                message: $"Parametre kaydedildi: {SelectedMaterial}-{SelectedThickness}mm-{SelectedGas}",
+                user: _sessionService.CurrentUser,
+                role: _sessionService.CurrentRole
+            );
         }
 
         private void LoadParamsFromFile()
@@ -307,7 +463,6 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         public void UpdateDerived()
         {
-            // Kural ve gaz uygunluğu
             Gas expected = SelectedThickness <= 5 ? Gas.Air
                             : (SelectedThickness <= 15 ? Gas.Oxygen : Gas.Nitrogen);
             RuleOk = SelectedGas == expected;
@@ -324,7 +479,6 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void CheckAll()
         {
-            // %95 ihtimalle düzelme (gaz seviyelerini artırmıyoruz)
             DoorsOk = _rng.NextDouble() < 0.95;
             VentOk = _rng.NextDouble() < 0.95;
             TableOk = _rng.NextDouble() < 0.95;
@@ -365,7 +519,6 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void Start(bool simOnly)
         {
-            // Simülasyon: sadece LaserOk yeterli. Run: tüm şartlar gerekli.
             if (simOnly)
             {
                 if (!LaserOk)
@@ -387,7 +540,6 @@ namespace LaserCutHMI.Prototype.ViewModels
             _isPaused = false;
             _isRunning = true;
 
-            // başlangıç konumları
             XPos = 50; YPos = 50; ZPos = 0;
             _visited.Clear();
             _vx = (_rng.NextDouble() * 2 - 1);
@@ -396,6 +548,8 @@ namespace LaserCutHMI.Prototype.ViewModels
             Status = simOnly ? "Simulating" : "Running";
             IsSimPressed = simOnly;
             AddEvent("Runtime", "INFO", $"Job started: {(NcPath != null ? Path.GetFileName(NcPath) : "(no NC)")} (sim={simOnly})");
+
+            _auditLog.Log("INFO", "Job.Start", $"İş başlatıldı (Sim={simOnly}). NC: {NcPath ?? "N/A"}", _sessionService.CurrentUser, _sessionService.CurrentRole);
 
             _timer.Start();
         }
@@ -408,6 +562,8 @@ namespace LaserCutHMI.Prototype.ViewModels
             Status = "Stopped";
             IsSimPressed = false;
             AddEvent("Stop", "WARN", "Stopped by operator.");
+
+            _auditLog.Log("WARN", "Job.Stop", "İş operatör tarafından durduruldu.", _sessionService.CurrentUser, _sessionService.CurrentRole);
         }
 
         private void Resume()
@@ -440,6 +596,10 @@ namespace LaserCutHMI.Prototype.ViewModels
 
             Status = "Reset";
             AddEvent("Runtime", "INFO", "Reset.");
+
+            _auditLog.Log("WARN", "Job.Reset", "Sistem sıfırlandı.", _sessionService.CurrentUser, _sessionService.CurrentRole);
+
+
             UpdateDerived();
         }
 
@@ -453,6 +613,7 @@ namespace LaserCutHMI.Prototype.ViewModels
 
             Status = "E-STOP";
             AddEvent("E-STOP", "ERROR", "ACİL DURDURMA!");
+            _auditLog.Log("CRITICAL", "Job.EStop", "ACİL DURDURMA BUTONUNA BASILDI!", _sessionService.CurrentUser, _sessionService.CurrentRole);
             UpdateDerived();
         }
 
@@ -460,25 +621,21 @@ namespace LaserCutHMI.Prototype.ViewModels
         {
             if (!_isRunning) return;
 
-            // Simülasyonda lazer/başınç 0; hız hesaplanır ve başlık hareket eder
             PressureBar = _simOnly ? 0 : CurrentParams.PressureBar;
             LaserPowerLive = _simOnly ? 0 : Math.Min(4000, CurrentParams.PowerW);
 
-            // Hız (mm/sn) – kalınlığa göre 10..44, gaz katsayıları
             double t = Math.Clamp((SelectedThickness - 1) / 49.0, 0.0, 1.0);
             double baseSpeed = 44 - (34 * t);
             double gasMult = SelectedGas switch { Gas.Oxygen => 1.3, Gas.Nitrogen => 1.56, _ => 1.0 };
             double jitter = 1.0 + ((_rng.NextDouble() * 0.2) - 0.1);
             CurrentSpeedMmSec = baseSpeed * gasMult * jitter;
 
-            // Kesim/süre sadece gerçek üretimde artar
             if (!_simOnly)
             {
                 JobCutMm += CurrentSpeedMmSec * TickSeconds;
                 JobElapsedSec += TickSeconds;
             }
 
-            // Başlık hareketi
             double step = CurrentSpeedMmSec * TickSeconds;
             _vx += (_rng.NextDouble() - 0.5) * 0.3;
             _vy += (_rng.NextDouble() - 0.5) * 0.3;
@@ -507,7 +664,6 @@ namespace LaserCutHMI.Prototype.ViewModels
             }
             XPos = nx; YPos = ny;
 
-            // Basit çizimler
             _plotX += 4;
             if (_plotX > 600)
             {
@@ -520,7 +676,6 @@ namespace LaserCutHMI.Prototype.ViewModels
             OnPropertyChanged(nameof(FeedPoints));
             OnPropertyChanged(nameof(PowerPoints));
 
-            // Gaz tüketimi sadece gerçek üretimde
             if (!_simOnly && Checks?.Tanks != null)
             {
                 double lps = SelectedGas switch
@@ -529,7 +684,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                     Gas.Nitrogen => 3.0 / (18 * 60.0),
                     _ => 3.0 / (60 * 60.0),
                 };
-                // 10x hızlandırılmış tüketim modeli
+
                 double percPerSec = (lps / 50.0) * 100.0 * 10.0;
                 var tank = Checks.Tanks.First(tnk => tnk.Gas == SelectedGas);
                 if (tank.Connected)
@@ -544,11 +699,9 @@ namespace LaserCutHMI.Prototype.ViewModels
                 }
             }
 
-            // NC satır ilerlemesi yalnız üretimde
             if (!_simOnly && NcLines.Count > 0)
                 CurrentLine = Math.Min(NcLines.Count, CurrentLine + 1);
 
-            // Ortalama ~50 saniyede bitir
             if (!_simOnly && JobElapsedSec >= 50)
             {
                 _timer.Stop();
@@ -556,6 +709,26 @@ namespace LaserCutHMI.Prototype.ViewModels
                 _isPaused = false;
                 Status = "Completed";
                 AddEvent("Runtime", "INFO", "Job completed.");
+
+                try
+                {
+                    var jobLog = new JobLogEntry
+                    {
+                        When = DateTime.Now,
+                        NcName = Path.GetFileName(NcPath) ?? "N/A",
+                        Material = SelectedMaterial,
+                        Gas = SelectedGas,
+                        ThicknessMm = SelectedThickness,
+                        DurationSec = JobElapsedSec,
+                        CutLengthMm = JobCutMm
+                    };
+                    _paramStore.LogProductionJob(jobLog);
+                    AddEvent("Database", "INFO", "Üretim özeti veritabanına kaydedildi.");
+                }
+                catch (Exception ex)
+                {
+                    AddEvent("Database", "ERROR", $"Özet kaydı hatası: {ex.Message}");
+                }
             }
         }
 
@@ -572,5 +745,462 @@ namespace LaserCutHMI.Prototype.ViewModels
                 });
             });
         }
+
+        private void LoadOzetData()
+        {
+            // Cache için benzersiz bir anahtar oluştur
+            string cacheKey = $"Ozet_{OzetBaslangic:yyyyMMdd}_{OzetBitis:yyyyMMdd}";
+
+            // 1. Önce Cache'i kontrol et
+            if (_cache.TryGet<List<JobLogEntry>>(cacheKey, out var cachedData))
+            {
+                OzetUretimKayitlari.Clear();
+                if (cachedData == null || cachedData.Count == 0)
+                {
+                    OzetToplamKesim = 0;
+                    OzetOrtalamaSure = 0;
+                }
+                else
+                {
+                    foreach (var item in cachedData)
+                    {
+                        OzetUretimKayitlari.Add(item);
+                    }
+                    OzetToplamKesim = cachedData.Sum(job => job.CutLengthMm);
+                    OzetOrtalamaSure = cachedData.Average(job => job.DurationSec);
+                }
+                AddEvent("Ozet", "INFO", $"{cachedData?.Count ?? 0} adet üretim kaydı (Cache'den) yüklendi.");
+                return; // Cache'de bulundu, metodu bitir.
+            }
+
+            // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
+            try
+            {
+                var data = _paramStore.GetProductionHistory(OzetBaslangic, OzetBitis.AddDays(1));
+
+                OzetUretimKayitlari.Clear();
+                if (data == null || data.Count == 0)
+                {
+                    OzetToplamKesim = 0;
+                    OzetOrtalamaSure = 0;
+                    AddEvent("Ozet", "INFO", "Seçili tarih aralığında üretim kaydı bulunamadı.");
+                }
+                else
+                {
+                    foreach (var item in data)
+                    {
+                        OzetUretimKayitlari.Add(item);
+                    }
+
+                    OzetToplamKesim = data.Sum(job => job.CutLengthMm);
+                    OzetOrtalamaSure = data.Average(job => job.DurationSec);
+                    AddEvent("Ozet", "INFO", $"{data.Count} adet üretim kaydı (DB'den) yüklendi.");
+
+                    // 3. Sonucu Cache'e kaydet (30 saniyeliğine)
+                    _cache.Set(cacheKey, data, TimeSpan.FromSeconds(30));
+                }
+            }
+            catch (Exception ex)
+            {
+                AddEvent("Ozet", "ERROR", $"Özet yüklenirken hata oluştu: {ex.Message}");
+            }
+        }
+
+        private void ValidateCode()
+        {
+            if (string.IsNullOrWhiteSpace(AccessCode))
+            {
+                SessionStatusText = "Hata: Kod girmediniz.";
+                return;
+            }
+
+            bool success = _sessionService.ValidateSession(AccessCode);
+
+            if (success)
+            {
+                SessionStatusText = $"Giriş başarılı. Mevcut Rol: {_sessionService.CurrentRole}";
+
+                _auditLog.Log(
+                    level: "OK",
+                    source: "Code.Validate",
+                    message: $"Başarılı giriş. Rol: {_sessionService.CurrentRole}",
+                    user: _sessionService.CurrentUser,
+                    role: _sessionService.CurrentRole
+                );
+
+                (SaveParamsCmd as RelayCommand)?.RaiseCanExecuteChanged();
+            }
+            else
+            {
+                SessionStatusText = "Hata: Geçersiz veya süresi dolmuş kod! (Deneme hakkınız azalmış olabilir)";
+
+                _auditLog.Log(
+                    level: "DENY",
+                    source: "Code.Validate",
+                    message: "Başarısız kod denemesi.",
+                    user: "System",
+                    role: UserRole.Operator
+                );
+            }
+        }
+
+        private void DoLogout()
+        {
+            _sessionService.Logout();
+            SessionStatusText = "Durum: Oturum kapatıldı. (Varsayılan: Operator)";
+
+            _auditLog.Log(
+                level: "INFO",
+                source: "Session.Logout",
+                message: "Oturum kapatıldı.",
+                user: "System",
+                role: UserRole.Operator
+            );
+
+            (SaveParamsCmd as RelayCommand)?.RaiseCanExecuteChanged();
+        }
+
+        
+        private void LoadAnalizData(bool fromFilter = false)
+        {
+            // 'fromFilter' true ise (yani tarih seçiciden geldiyse), Debouncer'ı kullan.
+            // Butondan geldiyse (fromFilter = false) anında çalıştır.
+            if (fromFilter)
+            {
+                _analizDebouncer.Debounce(() =>
+                {
+                    
+                    Application.Current.Dispatcher.Invoke(PerformLoadAnalizData);
+                });
+            }
+            else
+            {
+                PerformLoadAnalizData(); // Butona basılırsa anında çalıştır
+            }
+        }
+
+
+        private void PerformLoadAnalizData()
+        {
+            // Cache için benzersiz bir anahtar oluştur
+            string cacheKey = $"Analiz_{AnalizBaslangic:yyyyMMdd}_{AnalizBitis:yyyyMMdd}";
+
+            // 1. Önce Cache'i kontrol et
+            if (_cache.TryGet<List<JobLogEntry>>(cacheKey, out var cachedData))
+            {
+                if (cachedData == null || cachedData.Count == 0)
+                {
+                    AnalizToplamIs = 0;
+                    AnalizToplamKesim = 0;
+                    AnalizOrtalamaSure = 0;
+                    AnalizZamanSerisi.Clear();
+                    AnalizMalzemeKirilim.Clear();
+                }
+                else
+                {
+                    // Cache'deki veriyi kullanarak grafikleri ve kartları güncelle
+                    UpdateAnalizUI(cachedData);
+                }
+                AddEvent("Analiz", "INFO", $"{cachedData?.Count ?? 0} adet kayıt (Cache'den) analiz edildi.");
+                return; // Cache'de bulundu, metodu bitir.
+            }
+
+            // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
+            try
+            {
+                var data = _paramStore.GetProductionHistory(AnalizBaslangic, AnalizBitis.AddDays(1));
+
+                if (data == null || data.Count == 0)
+                {
+                    AnalizToplamIs = 0;
+                    AnalizToplamKesim = 0;
+                    AnalizOrtalamaSure = 0;
+                    AnalizZamanSerisi.Clear();
+                    AnalizMalzemeKirilim.Clear();
+                    AddEvent("Analiz", "INFO", "Seçili tarih aralığında analiz verisi bulunamadı.");
+                    return;
+                }
+
+                // Grafikleri ve kartları güncelle
+                UpdateAnalizUI(data);
+
+                // 3. Sonucu Cache'e kaydet (30 saniyeliğine)
+                _cache.Set(cacheKey, data, TimeSpan.FromSeconds(30));
+
+                AddEvent("Analiz", "INFO", $"{data.Count} adet kayıt (DB'den) analiz edildi.");
+            }
+            catch (Exception ex)
+            {
+                AddEvent("Analiz", "ERROR", $"Analiz verisi yüklenirken hata: {ex.Message}");
+            }
+        }
+
+        private void UpdateAnalizUI(List<JobLogEntry> data)
+        {
+            // Özet Kartları Güncelle
+            AnalizToplamIs = data.Count;
+            AnalizToplamKesim = data.Sum(job => job.CutLengthMm);
+            AnalizOrtalamaSure = data.Average(job => job.DurationSec);
+
+            // Grafik 1: Zaman Serisi
+            AnalizZamanSerisi.Clear();
+            AnalizZamanSerisi.Add(new LineSeries<JobLogEntry>
+            {
+                Values = data.OrderBy(d => d.When).ToList(),
+                Mapping = (job, index) => new(job.When.Ticks, job.DurationSec),
+                Name = "İş Süresi (sn)",
+                Stroke = new SolidColorPaint(SKColors.Blue) { StrokeThickness = 3 },
+                GeometryStroke = new SolidColorPaint(SKColors.Blue) { StrokeThickness = 5 },
+                GeometryFill = new SolidColorPaint(SKColors.White),
+                Fill = null
+            });
+
+            // Grafik 2: Malzeme Kırılımı
+            AnalizMalzemeKirilim.Clear();
+            var pieSeries = data
+                .GroupBy(job => job.Material)
+                .Select(group => new PieSeries<double>
+                {
+                    Values = new double[] { group.Sum(job => job.CutLengthMm) },
+                    Name = group.Key.ToString(),
+                    DataLabelsPaint = new SolidColorPaint(SKColors.Black) { FontFamily = "Arial" },
+                    DataLabelsPosition = PolarLabelsPosition.Outer,
+                    DataLabelsFormatter = p => $"{p.Model:F0} mm"
+                });
+
+            foreach (var series in pieSeries)
+            {
+                AnalizMalzemeKirilim.Add(series);
+            }
+        }
+
+        private void ExportAnalizToPdf()
+        {
+            var data = _paramStore.GetProductionHistory(AnalizBaslangic, AnalizBitis.AddDays(1));
+            if (data == null || data.Count == 0)
+            {
+                AddEvent("Rapor", "WARN", "Raporlanacak veri bulunamadı.");
+                return;
+            }
+
+            var totalCut = data.Sum(job => job.CutLengthMm);
+            var avgDuration = data.Average(job => job.DurationSec);
+
+            try
+            {
+                byte[] pdfBytes = _impex.GenerateAnalysisPdf(data, AnalizBaslangic, AnalizBitis, avgDuration, totalCut);
+
+                string contentHash = HashService.CalculateSha256(pdfBytes);
+
+                
+                string metadata = $"From:{AnalizBaslangic:o}|To:{AnalizBitis:o}"; // 'o' formatı (ISO 8601) tutarlılık için önemlidir
+                string metadataHash = HashService.CalculateSha256(metadata);
+
+                
+                string? previousHash = _paramStore.GetLatestReportHash();
+                string chainedHash = HashService.ChainReportHash(previousHash, metadataHash, contentHash);
+
+                var dlg = new SaveFileDialog
+                {
+                    FileName = $"AnalizRaporu_{AnalizBaslangic:yyyy-MM-dd}_{AnalizBitis:yyyy-MM-dd}.pdf",
+                    Filter = "PDF Dosyaları (*.pdf)|*.pdf"
+                };
+
+                if (dlg.ShowDialog() == true)
+                {
+                    
+                    File.WriteAllBytes(dlg.FileName, pdfBytes);
+
+                    
+                    _paramStore.SaveReportHistory(
+                        reportType: "Analiz",
+                        reportHash: chainedHash,       // Zincirlenmiş ana hash
+                        contentHash: contentHash,      // Sadece PDF içeriğinin hash'i
+                        metadataHash: metadataHash,    // Sadece filtrelerin hash'i
+                        previousHash: previousHash     // Bir önceki raporun hash'i
+                    );
+
+                    AddEvent("Rapor", "INFO", $"PDF Rapor kaydedildi ve veritabanına imzalandı.");
+                    _auditLog.Log("OK", "Report.ExportPDF", $"Analiz raporu PDF olarak dışa aktarıldı. Hash: {chainedHash}", _sessionService.CurrentUser, _sessionService.CurrentRole);
+                }
+            }
+            catch (Exception ex)
+            {
+                AddEvent("Rapor", "ERROR", $"PDF oluşturma/hash'leme hatası: {ex.Message}");
+                _auditLog.Log("ERROR", "Report.ExportPDF", $"Hata: {ex.Message}", _sessionService.CurrentUser, _sessionService.CurrentRole);
+            }
+        }
+
+        private void LoadKpiData()
+        {
+            
+            try
+            {
+                // Toplam çalışma süresini (son 30 gün) UretimKayitlari'ndan al
+                var data = _paramStore.GetProductionHistory(DateTime.Now.AddDays(-30), DateTime.Now);
+                double totalUptimeHours = data.Sum(job => job.DurationSec) / 3600.0; // Saniyeyi saate çevir
+
+                // Arıza sayısını Event log'dan say (basit simülasyon)
+               
+                int failureCount = Events.Count(e => e.Level == "ERROR" || e.Level == "WARN");
+                if (failureCount == 0) failureCount = 1; // 0'a bölme hatasını önle
+
+                // Basit KPI Hesaplamaları
+                // MTBF = Toplam Çalışma Süresi / Arıza Sayısı
+                KpiMtbf = totalUptimeHours / failureCount;
+
+                // MTTR = Ortalama 1 saatte onarıldığını varsayalım (simülasyon)
+                KpiMttr = 1.0;
+
+                // Availability = (Çalışma Süresi) / (Çalışma Süresi + Arıza Süresi)
+                double totalDowntimeHours = failureCount * KpiMttr;
+                KpiAvailability = (totalUptimeHours / (totalUptimeHours + totalDowntimeHours)) * 100.0;
+                if (double.IsNaN(KpiAvailability)) KpiAvailability = 100.0;
+
+                AddEvent("KPI", "INFO", "KPI verileri simüle edildi ve hesaplandı.");
+            }
+            catch (Exception ex)
+            {
+                AddEvent("KPI", "ERROR", $"KPI hesaplama hatası: {ex.Message}");
+                KpiMtbf = 0;
+                KpiMttr = 0;
+                KpiAvailability = 0;
+            }
+        }
+
+        // "Rapor Seç" ComboBox'ını doldurur
+        private void LoadVerifyReportList()
+        {
+            try
+            {
+                VerifyReportList.Clear();
+                var list = _paramStore.GetReportHistoryList(); // ADIM 13.D'de eklendi
+                if (list != null)
+                {
+                    foreach (var item in list)
+                    {
+                        VerifyReportList.Add(item);
+                    }
+                }
+                // ComboBox'taki ilk öğeyi (en son raporu) otomatik seç
+                VerifySelectedReport = VerifyReportList.FirstOrDefault();
+
+                VerifyResultText = "Veritabanındaki imzalı raporlar yüklendi. Lütfen birini seçin ve 'Doğrula'ya basın.";
+                VerifyHashUyumlu = null;
+                VerifyZincirTutarlı = null;
+            }
+            catch (Exception ex)
+            {
+                VerifyResultText = $"Hata: Rapor listesi yüklenemedi. {ex.Message}";
+            }
+        }
+
+        // "Doğrula" butonuna basıldığında çalışır
+        private void VerifySelectedFile()
+        {
+            
+
+            
+            if (VerifySelectedReport == null)
+            {
+                VerifyResultText = "Hata: Lütfen önce 'Rapor Seç' listesinden bir kayıt seçin.";
+                return;
+            }
+
+            // 2. Kullanıcıdan PDF dosyasını seçmesini iste
+            var dlg = new OpenFileDialog
+            {
+                Title = "Doğrulanacak PDF Rapor Dosyasını Seçin",
+                Filter = "PDF Dosyaları (*.pdf)|*.pdf|All Files (*.*)|*.*"
+            };
+
+            if (dlg.ShowDialog() != true)
+            {
+                VerifyResultText = "Doğrulama iptal edildi.";
+                return;
+            }
+
+            try
+            {
+                // 3. Veritabanından seçilen raporun TÜM detaylarını al
+                var dbEntry = _paramStore.GetReportHistoryEntry(VerifySelectedReport.Id); 
+                if (dbEntry == null)
+                {
+                    VerifyResultText = "Kritik Hata: Rapor imzası veritabanında bulunamadı!";
+                    return;
+                }
+
+                // 4. Kullanıcının seçtiği PDF dosyasının içeriğini oku ve hash'ini al
+                byte[] fileBytes = File.ReadAllBytes(dlg.FileName);
+                string fileContentHash = HashService.CalculateSha256(fileBytes); // 
+
+                
+                VerifyHashUyumlu = (fileContentHash == dbEntry.ContentHash);
+
+                
+                // Bir önceki raporun ana hash'ini al
+                var allReports = _paramStore.GetReportHistoryList();
+                var previousDbEntry = allReports.FirstOrDefault(r => r.Timestamp < dbEntry.Timestamp);
+                string? expectedPreviousHash = previousDbEntry?.ReportHash;
+
+                VerifyZincirTutarlı = (dbEntry.PreviousHash == expectedPreviousHash);
+
+                // 7. Sonucu bildir
+                if (VerifyHashUyumlu == true && VerifyZincirTutarlı == true)
+                {
+                    VerifyResultText = $"DOĞRULAMA BAŞARILI: Dosya içeriği (Hash: {fileContentHash.Substring(0, 10)}...) ve Rapor Zinciri tutarlı.";
+                }
+                else
+                {
+                    VerifyResultText = "DOĞRULAMA BAŞARISIZ! Rapor değiştirilmiş veya zincirde kopukluk var.";
+                    if (VerifyHashUyumlu == false) VerifyResultText += " (Dosya içeriği uyuşmuyor)";
+                    if (VerifyZincirTutarlı == false) VerifyResultText += " (Rapor zinciri kırık)";
+                }
+            }
+            catch (Exception ex)
+            {
+                VerifyResultText = $"Doğrulama sırasında hata: {ex.Message}";
+                VerifyHashUyumlu = false;
+                VerifyZincirTutarlı = false;
+            }
+        }
+
+        private void RequestCode(UserRole role)
+        {
+            SessionStatusText = $"{role} kodu isteniyor, e-posta gönderiliyor...";
+            try
+            {
+                
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _sessionService.RequestAccessCode(role);
+
+                      
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            SessionStatusText = $"{role} kodu yönetici e-postasına gönderildi. Lütfen kodu girin.";
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        
+                        Application.Current.Dispatcher.Invoke(() =>
+                        {
+                            SessionStatusText = $"Hata: E-posta gönderilemedi. {ex.Message}";
+                        });
+                        _auditLog.Log("ERROR", "Session.CodeRequest.Task", $"{role} kodu gönderme hatası: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                // Task.Run() başlatılırken hata olursa (çok nadir)
+                SessionStatusText = $"Hata: E-posta işlemi başlatılamadı. {ex.Message}";
+                _auditLog.Log("CRITICAL", "Session.CodeRequest", $"{role} kodu isteme hatası: {ex.Message}");
+            }
+        }
+
     }
 }

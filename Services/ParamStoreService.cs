@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using LaserCutHMI.Prototype.Models;
+using System; // YENİ: List<> ve DateTime kullanabilmek için
 
 namespace LaserCutHMI.Prototype.Services
 {
@@ -17,9 +18,18 @@ namespace LaserCutHMI.Prototype.Services
 
         // Geriye dönük uyumluluk (ImportExportService SaveMany çağırıyor)
         void SaveMany(IEnumerable<ParamRow> rows);
+
+        void SaveReportHistory(string reportType, string reportHash, string contentHash, string metadataHash, string? previousHash);
+        string? GetLatestReportHash();
+
+        List<ReportHistoryEntry> GetReportHistoryList();
+        ReportHistoryEntry? GetReportHistoryEntry(int id);
+
+        void LogProductionJob(JobLogEntry job);
+        List<JobLogEntry> GetProductionHistory(DateTime from, DateTime to);
     }
 
-    // In-memory yedek (esas kalıcı olan SqliteParamStore)
+    
     public class ParamStoreService : IParamStore
     {
         private readonly Dictionary<string, CutParams> _map = new();
@@ -65,5 +75,39 @@ namespace LaserCutHMI.Prototype.Services
         }
 
         public void SaveMany(IEnumerable<ParamRow> rows) => BulkUpsert(rows);
+
+        public void SaveReportHistory(string reportType, string reportHash, string contentHash, string metadataHash, string? previousHash)
+        {
+            // no-op (Boş bırak)
+        }
+
+        public string? GetLatestReportHash()
+        {
+            return null; // Boş bırak
+        }
+
+        public List<ReportHistoryEntry> GetReportHistoryList()
+        {
+            return new List<ReportHistoryEntry>(); // Boş liste döndür
+        }
+
+        public ReportHistoryEntry? GetReportHistoryEntry(int id)
+        {
+            return null; // Boş döndür
+        }
+
+
+
+
+        public void LogProductionJob(JobLogEntry job)
+        {
+            
+        }
+
+        
+        public List<JobLogEntry> GetProductionHistory(DateTime from, DateTime to)
+        {
+            return new List<JobLogEntry>(); // Boş liste döndür
+        }
     }
 }

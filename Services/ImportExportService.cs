@@ -9,6 +9,11 @@ using System.Windows;
 using Microsoft.Win32;
 using LaserCutHMI.Prototype.Models;
 
+// QuestPDF için using'ler
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+
 namespace LaserCutHMI.Prototype.Services
 {
     public class ImportExportService
@@ -16,7 +21,7 @@ namespace LaserCutHMI.Prototype.Services
         private readonly IParamStore _store;
         public ImportExportService(IParamStore store) { _store = store; }
 
-        // ---- Kullanıcıdan dosya seçtirerek içe aktar ----
+        // ---- Mevcut Kod (Değişmedi) ----
         public void LoadFromFileInteractive()
         {
             var dlg = new OpenFileDialog
@@ -79,7 +84,7 @@ namespace LaserCutHMI.Prototype.Services
             }
         }
 
-        // ---- Dışa aktar ----
+        // ---- Mevcut Kod (Değişmedi) ----
         public void ExportToFileInteractive()
         {
             var dlg = new SaveFileDialog
@@ -141,6 +146,7 @@ namespace LaserCutHMI.Prototype.Services
             }
         }
 
+        // ---- Mevcut Kod (Değişmedi) ----
         private static List<ParamRow> ParseCsv(IEnumerable<string> lines)
         {
             var rows = new List<ParamRow>();
@@ -175,6 +181,7 @@ namespace LaserCutHMI.Prototype.Services
             return rows;
         }
 
+        // ---- Mevcut Kod (Değişmedi) ----
         private class ParamDto
         {
             public Material Material { get; set; }
@@ -185,6 +192,88 @@ namespace LaserCutHMI.Prototype.Services
             public int Duty { get; set; }
             public double PressureBar { get; set; }
             public double CuttingHeightMm { get; set; }
+        }
+
+        // YENİ EKLENDİ (ADIM 9.B) - QuestPDF Mantığı Düzeltildi
+        public byte[] GenerateAnalysisPdf(List<JobLogEntry> data, DateTime from, DateTime to, double avgDuration, double totalCut)
+        {
+            QuestPDF.Settings.License = LicenseType.Community;
+
+            return Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Margin(50);
+
+                    // Başlık
+                    page.Header().Text(text =>
+                    {
+                        text.Span($"Analiz Raporu: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}")
+                            .SemiBold().FontSize(20).FontColor(Colors.Blue.Medium);
+                    });
+
+                    page.Content().Column(col =>
+                    {
+                        // Özet Kartlar (DÜZELTME: CS0023 - .PaddingBottom() 'Item'a taşındı)
+                        col.Item().PaddingBottom(10).Text(text =>
+                        {
+                            text.Span("Özet İstatistikler").SemiBold().FontSize(16);
+                        });
+
+                        col.Item().Row(row =>
+                        {
+                            row.RelativeItem().Border(1).Background(Colors.Grey.Lighten3).Padding(5)
+                                .Text($"Toplam Kayıt: {data.Count}");
+                            row.RelativeItem().Border(1).Background(Colors.Grey.Lighten3).Padding(5)
+                                .Text($"Ortalama Süre: {avgDuration:F1} sn");
+                            row.RelativeItem().Border(1).Background(Colors.Grey.Lighten3).Padding(5)
+                                .Text($"Toplam Kesim: {totalCut:F0} mm");
+                        });
+
+                        // Veri Tablosu
+                        col.Item().PaddingTop(20).Table(table =>
+                        {
+                            table.ColumnsDefinition(columns =>
+                            {
+                                columns.RelativeColumn(3); // Zaman
+                                columns.RelativeColumn(3); // NC Dosyası
+                                columns.RelativeColumn(2); // Malzeme
+                                columns.RelativeColumn(1); // Süre
+                                columns.RelativeColumn(2); // Kesim
+                            });
+
+                            // Tablo Başlığı (Header) (DÜZELTME: CS1061 - .Apply() kaldırıldı, stiller doğrudan eklendi)
+                            table.Header(header =>
+                            {
+                                header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Zaman");
+                                header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("NC Dosyası");
+                                header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Reçete");
+                                header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Süre (sn)");
+                                header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Kesim (mm)");
+                            });
+
+                            // Tablo İçeriği (DÜZELTME: CS1061 - .Apply() kaldırıldı, stiller doğrudan eklendi)
+                            foreach (var item in data)
+                            {
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.When.ToString("dd.MM HH:mm"));
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.NcName);
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text($"{item.Material} {item.ThicknessMm}mm {item.Gas}");
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.DurationSec.ToString("F1"));
+                                table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.CutLengthMm.ToString("F0"));
+                            }
+                        });
+                    });
+
+                    // Sayfa Numarası
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Sayfa ");
+                        text.CurrentPageNumber();
+                        text.Span(" / ");
+                        text.TotalPages();
+                    });
+                });
+            }).GeneratePdf();
         }
     }
 }
