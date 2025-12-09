@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using LaserCutHMI.Prototype.Models;
-using System; // YENİ: List<> ve DateTime kullanabilmek için
-
+using System; 
 namespace LaserCutHMI.Prototype.Services
 {
     public interface IParamStore
@@ -10,13 +9,13 @@ namespace LaserCutHMI.Prototype.Services
         CutParams Get(Material mat, Gas gas, int thicknessMm);
         void Save(Material mat, Gas gas, int thicknessMm, CutParams p);
 
-        // Tümü
+        
         IEnumerable<(Material Mat, Gas Gas, int ThicknessMm, CutParams Params)> GetAll();
 
-        // Toplu ekleme/güncelleme
+        
         void BulkUpsert(IEnumerable<ParamRow> rows);
 
-        // Geriye dönük uyumluluk (ImportExportService SaveMany çağırıyor)
+        
         void SaveMany(IEnumerable<ParamRow> rows);
 
         void SaveReportHistory(string reportType, string reportHash, string contentHash, string metadataHash, string? previousHash);
@@ -42,7 +41,7 @@ namespace LaserCutHMI.Prototype.Services
             var key = Key(mat, gas, thicknessMm);
             if (!_map.TryGetValue(key, out var p))
             {
-                p = new CutParams(); // default
+                p = new CutParams(); 
                 _map[key] = p;
             }
             return p;
@@ -78,22 +77,22 @@ namespace LaserCutHMI.Prototype.Services
 
         public void SaveReportHistory(string reportType, string reportHash, string contentHash, string metadataHash, string? previousHash)
         {
-            // no-op (Boş bırak)
+            
         }
 
         public string? GetLatestReportHash()
         {
-            return null; // Boş bırak
+            return null; 
         }
 
         public List<ReportHistoryEntry> GetReportHistoryList()
         {
-            return new List<ReportHistoryEntry>(); // Boş liste döndür
+            return new List<ReportHistoryEntry>(); // 
         }
 
         public ReportHistoryEntry? GetReportHistoryEntry(int id)
         {
-            return null; // Boş döndür
+            return null; 
         }
 
 
@@ -107,7 +106,7 @@ namespace LaserCutHMI.Prototype.Services
         
         public List<JobLogEntry> GetProductionHistory(DateTime from, DateTime to)
         {
-            return new List<JobLogEntry>(); // Boş liste döndür
+            return new List<JobLogEntry>(); 
         }
     }
 }

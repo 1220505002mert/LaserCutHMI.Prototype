@@ -5,8 +5,8 @@
     {
         public Material Material { get; set; }
         public Gas Gas { get; set; }
-        public int ThicknessMm { get; set; }
 
+        public int ThicknessMm { get; set; }
         public int PowerW { get; set; }
         public int Frequency { get; set; }
         public int Duty { get; set; }

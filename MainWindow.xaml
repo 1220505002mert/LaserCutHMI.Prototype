@@ -68,7 +68,7 @@
             <RowDefinition Height="Auto"/>
             <!-- alt buton bar -->
             <RowDefinition Height="208"/>
-            <!-- events: %20 küçültüldü -->
+            <!-- events -->
             <RowDefinition Height="Auto"/>
             <!-- status -->
         </Grid.RowDefinitions>
@@ -77,7 +77,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,8">
             <TextBlock Text="MRT HMI — Student Prototype" FontSize="20" FontWeight="Bold" Margin="0,0,0,6"/>
             <UniformGrid Rows="1" Columns="9">
-                <!-- Görünen ad değişti; CommandParameter aynen 'Giris' -->
+                <!-- 'Giris' -->
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Görünüm"    Command="{Binding NavigateCmd}" CommandParameter="Giris"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Operatör"   Command="{Binding NavigateCmd}" CommandParameter="Operator"/>
                 <Button Style="{StaticResource NavHeaderStyle}" Content="Parametre"  Command="{Binding NavigateCmd}" CommandParameter="Parametre"/>
@@ -193,7 +193,7 @@
 
         </Grid>
 
-        <!-- ========== SAYFA: PARAMETRE (değişmedi) ========== -->
+        <!-- ========== SAYFA: PARAMETRE  ========== -->
         <Grid Grid.Row="1"
               Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Parametre}">
             <Grid.ColumnDefinitions>
@@ -279,7 +279,7 @@
             </GroupBox>
         </Grid>
 
-        <!-- ========== SAYFA: ÜRETİM (değişmedi; ekstra parametre yok) ========== -->
+        <!-- ========== SAYFA: ÜRETİM  ========== -->
         <Grid Grid.Row="1" Visibility="{Binding SelectedPage, Converter={StaticResource EnumToVis}, ConverterParameter=Uretim}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="2*"/>

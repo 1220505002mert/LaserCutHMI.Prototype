@@ -21,6 +21,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             _timer.Elapsed += Timer_Elapsed;
         }
 
+
         public void Debounce(Action action)
         {
             _action = action;

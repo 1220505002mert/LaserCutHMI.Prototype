@@ -18,7 +18,7 @@ namespace LaserCutHMI.Prototype.Services
         private readonly IAuditLog _auditLog;
         private readonly Random _random = new Random();
 
-        // Üretilen kodları ve son geçerlilik tarihlerini burada saklayacağız
+        // Üretilen kodlar ve son geçerlilik tarihleri
         // (Kod, (Hangi Rol, Son Geçerlilik Tarihi))
         private readonly Dictionary<string, (UserRole Role, DateTime ExpiresAt)> _activeCodes = new();
 
@@ -28,7 +28,7 @@ namespace LaserCutHMI.Prototype.Services
             _auditLog = auditLog;
         }
 
-        // Arayüz özellikleri (değişmedi)
+        // Arayüz özellikleri 
         public bool IsValid { get; private set; } = false;
         public UserRole CurrentRole { get; private set; } = UserRole.Operator;
         public string CurrentUser { get; private set; } = "Operator";
@@ -39,10 +39,10 @@ namespace LaserCutHMI.Prototype.Services
             // 6 haneli rastgele bir kod üret
             string code = _random.Next(100000, 999999).ToString();
 
-            // Raporunuzdaki 300 saniye (5 dakika) geçerlilik
+           
             var expiresAt = DateTime.UtcNow.AddSeconds(300);
 
-            // Kodu (rolü ve süresiyle) hafızaya kaydet
+            // Kodu  hafızaya kaydet
             _activeCodes[code] = (role, expiresAt);
 
             string targetEmail = (role == UserRole.Admin) ? ADMIN_EMAIL : SERVIS_EMAIL;
@@ -59,7 +59,7 @@ namespace LaserCutHMI.Prototype.Services
             catch (Exception ex)
             {
                 _auditLog.Log("ERROR", "Session.CodeRequest", $"E-posta gönderme hatası: {ex.Message}", "System", UserRole.Operator);
-                // Gerçek uygulamada kullanıcıya hata gösterilmelidir
+                
             }
         }
 
@@ -71,19 +71,18 @@ namespace LaserCutHMI.Prototype.Services
             if (string.IsNullOrEmpty(accessCode))
                 return false;
 
-            // 1. Kod listede var mı?
+            // Kod listede var mı?
             if (_activeCodes.TryGetValue(accessCode, out var entry))
             {
-                // 2. Kodun süresi dolmuş mu?
+                //  Kodun süresi dolmuş mu?
                 if (entry.ExpiresAt > DateTime.UtcNow)
                 {
                     // Başarılı!
                     IsValid = true;
-                    CurrentRole = entry.Role; // Koddaki rolü ata
+                    CurrentRole = entry.Role; 
                     CurrentUser = $"{entry.Role}User";
 
-                    // Anti-Replay (YazStajı2.docx, 27.08.2025):
-                    // Kod kullanıldıktan sonra listeden silinir.
+                    
                     _activeCodes.Remove(accessCode);
 
                     return true;

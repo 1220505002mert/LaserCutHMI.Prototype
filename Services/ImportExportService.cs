@@ -8,8 +8,6 @@ using System.Text.Json;
 using System.Windows;
 using Microsoft.Win32;
 using LaserCutHMI.Prototype.Models;
-
-// QuestPDF için using'ler
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -21,7 +19,7 @@ namespace LaserCutHMI.Prototype.Services
         private readonly IParamStore _store;
         public ImportExportService(IParamStore store) { _store = store; }
 
-        // ---- Mevcut Kod (Değişmedi) ----
+        
         public void LoadFromFileInteractive()
         {
             var dlg = new OpenFileDialog
@@ -38,7 +36,7 @@ namespace LaserCutHMI.Prototype.Services
                 if (ext == ".json")
                 {
                     var json = File.ReadAllText(dlg.FileName);
-                    // Önce ParamRow şemasını deneyelim
+                    
                     try
                     {
                         var rows = JsonSerializer.Deserialize<List<ParamRow>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
@@ -47,7 +45,7 @@ namespace LaserCutHMI.Prototype.Services
                     }
                     catch
                     {
-                        // Eski DTO'yu da destekle
+                        
                         var items = JsonSerializer.Deserialize<List<ParamDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new();
                         var rows = new List<ParamRow>();
                         foreach (var it in items)
@@ -68,7 +66,7 @@ namespace LaserCutHMI.Prototype.Services
                         count = rows.Count;
                     }
                 }
-                else // CSV
+                else 
                 {
                     var lines = File.ReadAllLines(dlg.FileName);
                     var rows = ParseCsv(lines);
@@ -84,7 +82,7 @@ namespace LaserCutHMI.Prototype.Services
             }
         }
 
-        // ---- Mevcut Kod (Değişmedi) ----
+        
         public void ExportToFileInteractive()
         {
             var dlg = new SaveFileDialog
@@ -118,7 +116,7 @@ namespace LaserCutHMI.Prototype.Services
                 }
                 else
                 {
-                    // JSON
+                    
                     var rows = new List<ParamRow>();
                     foreach (var row in all)
                     {
@@ -146,7 +144,7 @@ namespace LaserCutHMI.Prototype.Services
             }
         }
 
-        // ---- Mevcut Kod (Değişmedi) ----
+        
         private static List<ParamRow> ParseCsv(IEnumerable<string> lines)
         {
             var rows = new List<ParamRow>();
@@ -159,7 +157,7 @@ namespace LaserCutHMI.Prototype.Services
                 var parts = line.Split(new[] { ',', ';' }, StringSplitOptions.None);
                 if (parts.Length < 8) continue;
 
-                // Header satırı olursa atla
+                
                 if (parts[0].Equals("Material", StringComparison.OrdinalIgnoreCase)) continue;
 
                 var material = Enum.Parse<Material>(parts[0].Trim(), ignoreCase: true);
@@ -264,7 +262,7 @@ namespace LaserCutHMI.Prototype.Services
                         });
                     });
 
-                    // Sayfa Numarası
+                    
                     page.Footer().AlignCenter().Text(text =>
                     {
                         text.Span("Sayfa ");

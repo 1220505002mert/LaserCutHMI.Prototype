@@ -6,7 +6,7 @@ namespace LaserCutHMI.Prototype.Models
     {
         public DateTime Timestamp { get; set; } = DateTime.Now;
         public string Level { get; set; } = "INFO";   // INFO / WARN / ERROR
-        public string Source { get; set; } = "";      // Checks, Runtime, Stop, E-Stop, NC, etc.
+        public string Source { get; set; } = "";      // Checks, Runtime, Stop, E-Stop, NC
         public string Message { get; set; } = "";
     }
 }

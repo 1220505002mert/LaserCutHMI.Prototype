@@ -36,7 +36,7 @@ namespace LaserCutHMI.Prototype.Services
                 CurrentIndex = i;
                 ct.ThrowIfCancellationRequested();
                 await onLine(i);
-                await Task.Delay(60, ct); // simülasyon hızı
+                await Task.Delay(60, ct); 
                 if (_estopped) break;
             }
 
@@ -46,7 +46,7 @@ namespace LaserCutHMI.Prototype.Services
         public void EStop()
         {
             _estopped = true;
-            _cts?.Cancel(); // döngüyü kır
+            _cts?.Cancel(); 
             IsRunning = false;
         }
 

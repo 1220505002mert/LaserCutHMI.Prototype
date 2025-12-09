@@ -267,6 +267,8 @@ namespace LaserCutHMI.Prototype.Services
             conn.Open();
             var cmd = conn.CreateCommand();
 
+            // DÜZELTME: Sorguya 'ReportHash' eklendi.
+            // Böylece doğrulama yaparken listedeki eski raporların hash'ini bilebiliriz.
             cmd.CommandText = @"
         SELECT Id, Timestamp, ReportType, ReportHash 
         FROM ReportHistory

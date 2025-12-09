@@ -87,7 +87,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             set { if (Set(ref _selectedThickness, value)) { LoadOrInitParams(); UpdateDerived(); } }
         }
 
-        // --- ComboBox'lar için ItemsSource listeleri (YENİ) ---
+        // --- ComboBox'lar için ItemsSource listeleri  ---
         public IReadOnlyList<Material> Materials { get; } =
             Enum.GetValues(typeof(Material)).Cast<Material>().ToList();
 
@@ -218,10 +218,10 @@ namespace LaserCutHMI.Prototype.ViewModels
         private double _kpiAvailability;
         public double KpiAvailability { get => _kpiAvailability; set => Set(ref _kpiAvailability, value); } // Kullanılabilirlik (%)
 
-        // "Rapor Seç" ComboBox'ı için liste
+        
         public ObservableCollection<ReportHistoryEntry> VerifyReportList { get; } = new();
 
-        // ComboBox'ta seçilen rapor
+        
         private ReportHistoryEntry? _verifySelectedReport;
         public ReportHistoryEntry? VerifySelectedReport { get => _verifySelectedReport; set => Set(ref _verifySelectedReport, value); }
 
@@ -363,7 +363,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             LoadVerifyReportListCmd = new RelayCommand(_ => LoadVerifyReportList());
             VerifySelectedFileCmd = new RelayCommand(_ => VerifySelectedFile());
 
-            ToggleFlyoutCmd = new RelayCommand(_ => IsFlyoutOpen = !IsFlyoutOpen); // Sadece açık/kapalı yap
+            ToggleFlyoutCmd = new RelayCommand(_ => IsFlyoutOpen = !IsFlyoutOpen); 
 
             RequestAdminCodeCmd = new RelayCommand(_ => RequestCode(UserRole.Admin));
             RequestServisCodeCmd = new RelayCommand(_ => RequestCode(UserRole.Servis));
@@ -840,7 +840,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                 return; // Cache'de bulundu, metodu bitir.
             }
 
-            // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
+            // 2. Cache'de yoksa Veritabanına git 
             try
             {
                 var data = _paramStore.GetProductionHistory(start, end);
@@ -975,7 +975,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                 return; // Cache'de bulundu, metodu bitir.
             }
 
-            // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
+            // 2. Cache'de yoksa Veritabanına git 
             try
             {
                 var data = _paramStore.GetProductionHistory(start, end);
@@ -1007,12 +1007,12 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void UpdateAnalizUI(List<JobLogEntry> data)
         {
-            // Özet Kartları Güncelle
+            // Özet Kartlar
             AnalizToplamIs = data.Count;
             AnalizToplamKesim = data.Sum(job => job.CutLengthMm);
             AnalizOrtalamaSure = data.Average(job => job.DurationSec);
 
-            // Grafik 1: Zaman Serisi
+            //  Zaman Serisi
             AnalizZamanSerisi.Clear();
             AnalizZamanSerisi.Add(new LineSeries<JobLogEntry>
             {
@@ -1025,7 +1025,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                 Fill = null
             });
 
-            // Grafik 2: Malzeme Kırılımı
+            //  Malzeme Kırılımı
             AnalizMalzemeKirilim.Clear();
             var pieSeries = data
                 .GroupBy(job => job.Material)
@@ -1066,7 +1066,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                 string contentHash = HashService.CalculateSha256(pdfBytes);
 
                 
-                string metadata = $"From:{AnalizBaslangic:o}|To:{AnalizBitis:o}"; // 'o' formatı (ISO 8601) tutarlılık için önemlidir
+                string metadata = $"From:{AnalizBaslangic:o}|To:{AnalizBitis:o}"; 
                 string metadataHash = HashService.CalculateSha256(metadata);
 
                 
@@ -1110,16 +1110,16 @@ namespace LaserCutHMI.Prototype.ViewModels
             
             try
             {
-                // Toplam çalışma süresini (son 30 gün) UretimKayitlari'ndan al
+                
                 var data = _paramStore.GetProductionHistory(DateTime.Now.AddDays(-30), DateTime.Now);
                 double totalUptimeHours = data.Sum(job => job.DurationSec) / 3600.0; // Saniyeyi saate çevir
 
-                // Arıza sayısını Event log'dan say (basit simülasyon)
+                // Arıza sayısını Event log'dan say 
                
                 int failureCount = Events.Count(e => e.Level == "ERROR" || e.Level == "WARN");
                 if (failureCount == 0) failureCount = 1; // 0'a bölme hatasını önle
 
-                // Basit KPI Hesaplamaları
+               
                 // MTBF = Toplam Çalışma Süresi / Arıza Sayısı
                 KpiMtbf = totalUptimeHours / failureCount;
 
@@ -1142,13 +1142,13 @@ namespace LaserCutHMI.Prototype.ViewModels
             }
         }
 
-        // "Rapor Seç" ComboBox'ını doldurur
+        
         private void LoadVerifyReportList()
         {
             try
             {
                 VerifyReportList.Clear();
-                var list = _paramStore.GetReportHistoryList(); // ADIM 13.D'de eklendi
+                var list = _paramStore.GetReportHistoryList(); 
                 if (list != null)
                 {
                     foreach (var item in list)
@@ -1169,7 +1169,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             }
         }
 
-        // "Doğrula" butonuna basıldığında çalışır
+        
         private void VerifySelectedFile()
         {
             
@@ -1181,7 +1181,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                 return;
             }
 
-            // 2. Kullanıcıdan PDF dosyasını seçmesini iste
+            
             var dlg = new OpenFileDialog
             {
                 Title = "Doğrulanacak PDF Rapor Dosyasını Seçin",
@@ -1196,7 +1196,7 @@ namespace LaserCutHMI.Prototype.ViewModels
 
             try
             {
-                // 3. Veritabanından seçilen raporun TÜM detaylarını al
+                //  Veritabanından seçilen raporun TÜM detaylarını al
                 var dbEntry = _paramStore.GetReportHistoryEntry(VerifySelectedReport.Id); 
                 if (dbEntry == null)
                 {
@@ -1204,7 +1204,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                     return;
                 }
 
-                // 4. Kullanıcının seçtiği PDF dosyasının içeriğini oku ve hash'ini al
+                //  Kullanıcının seçtiği PDF dosyasının içeriğini oku ve hash'ini al
                 byte[] fileBytes = File.ReadAllBytes(dlg.FileName);
                 string fileContentHash = HashService.CalculateSha256(fileBytes); // 
 
@@ -1219,7 +1219,7 @@ namespace LaserCutHMI.Prototype.ViewModels
 
                 VerifyZincirTutarlı = (dbEntry.PreviousHash == expectedPreviousHash);
 
-                // 7. Sonucu bildir
+               
                 if (VerifyHashUyumlu == true && VerifyZincirTutarlı == true)
                 {
                     VerifyResultText = $"DOĞRULAMA BAŞARILI: Dosya içeriği (Hash: {fileContentHash.Substring(0, 10)}...) ve Rapor Zinciri tutarlı.";
@@ -1270,7 +1270,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             }
             catch (Exception ex)
             {
-                // Task.Run() başlatılırken hata olursa (çok nadir)
+                // Task.Run() başlatılırken hata olursa 
                 SessionStatusText = $"Hata: E-posta işlemi başlatılamadı. {ex.Message}";
                 _auditLog.Log("CRITICAL", "Session.CodeRequest", $"{role} kodu isteme hatası: {ex.Message}");
             }

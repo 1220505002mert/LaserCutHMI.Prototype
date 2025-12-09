@@ -11,13 +11,13 @@ namespace LaserCutHMI.Prototype.Services
     
     public class AuditLogService : IAuditLog
     {
-        // Logları uygulamanın çalıştığı dizinde 'audit.log' dosyasına yazacağız
+        
         private readonly string _logFile = Path.Combine(AppContext.BaseDirectory, "audit.log");
-        private readonly object _lock = new object(); // Aynı anda yazmayı önlemek için kilit
+        private readonly object _lock = new object(); 
 
         public void Log(AuditEntry entry)
         {
-            // Dosyaya yazarken kilitle
+            
             lock (_lock)
             {
                 string logText = $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss} " +
@@ -40,7 +40,7 @@ namespace LaserCutHMI.Prototype.Services
                 Message = message,
                 User = user,
                 Role = role
-                // Timestamp otomatik olarak set edilecek (AuditEntry modelinde)
+                
             });
         }
     }

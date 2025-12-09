@@ -15,7 +15,6 @@ namespace LaserCutHMI.Prototype.ViewModels
 
     public class MemoryCacheLite : ICache
     {
-        // (Değer, Son Geçerlilik Tarihi)
         private readonly Dictionary<string, (object Value, DateTime ExpiresAt)> _map = new();
         private readonly object _gate = new();
 
@@ -26,7 +25,6 @@ namespace LaserCutHMI.Prototype.ViewModels
             {
                 if (_map.TryGetValue(key, out var entry))
                 {
-                    // Cache'in süresi dolmuş mu?
                     if (entry.ExpiresAt > DateTime.UtcNow)
                     {
                         value = (T)entry.Value;
@@ -34,7 +32,7 @@ namespace LaserCutHMI.Prototype.ViewModels
                     }
                     else
                     {
-                        // Süresi dolmuşsa cache'den sil
+                       
                         _map.Remove(key);
                     }
                 }

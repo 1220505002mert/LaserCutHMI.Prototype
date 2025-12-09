@@ -14,7 +14,7 @@ namespace LaserCutHMI.Prototype.Models
         public double DurationSec { get; set; }
         public double CutLengthMm { get; set; }
 
-        // Özet satırı için kısaca:
+        
         public override string ToString()
             => $"{When:yyyy-MM-dd HH:mm} • {NcName} • {Material} {ThicknessMm}mm {Gas} • {CutLengthMm:F0} mm • {DurationSec:F1} sn";
     }

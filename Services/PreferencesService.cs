@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic; // Dictionary için gerekli
+using System.Collections.Generic; 
 using System.IO;
 using System.Text.Json;
 

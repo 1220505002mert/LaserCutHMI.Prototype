@@ -39,7 +39,7 @@ namespace LaserCutHMI.Prototype.Services
                         return;
                     }
                 }
-                catch { /* bozuksa default yazacağız */ }
+                catch {  }
             }
 
             Rules = BuildDefault();
@@ -55,7 +55,7 @@ namespace LaserCutHMI.Prototype.Services
             File.WriteAllText(_path, json);
         }
 
-        // Verilen örneğe göre default: 1-5 Hava, 6-15 Oksijen, 16-50 Azot
+        
         private static CuttingRules BuildDefault()
         {
             Dictionary<string, List<ThicknessRange>> MakeGasMap() => new()
@@ -82,7 +82,7 @@ namespace LaserCutHMI.Prototype.Services
             var g = gas.ToString();
 
             if (!Rules.Materials.TryGetValue(m, out var gasMap))
-                return true; // kural yoksa engelleme
+                return true; 
 
             if (!gasMap.TryGetValue(g, out var ranges))
                 return false;

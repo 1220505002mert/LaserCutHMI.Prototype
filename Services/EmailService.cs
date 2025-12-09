@@ -15,9 +15,9 @@ namespace LaserCutHMI.Prototype.Services
 
         
         private const string SMTP_HOST = "smtp.gmail.com";
-        private const int SMTP_PORT = 587; // TLS için
+        private const int SMTP_PORT = 587; // TLS 
 
-        // E-postayı GÖNDEREN hesap (Yönetici veya sistem hesabı)
+        
         private const string SENDER_EMAIL = "mertkavaksoc@gmail.com";
 
       
@@ -32,7 +32,7 @@ namespace LaserCutHMI.Prototype.Services
 
                 var message = new MailMessage(SENDER_EMAIL, to, subject, body)
                 {
-                    IsBodyHtml = false // Düz metin
+                    IsBodyHtml = false 
                 };
 
                 // E-postayı asenkron olarak gönder

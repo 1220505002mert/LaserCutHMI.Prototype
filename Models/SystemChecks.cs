@@ -3,7 +3,7 @@ using System.Collections.ObjectModel;
 
 namespace LaserCutHMI.Prototype.Models
 {
-    // Sadece SystemChecks (GasTank ayrı dosyada)
+    
     public class SystemChecks : INotifyPropertyChanged
     {
         private ObservableCollection<GasTank> _tanks = new ObservableCollection<GasTank>();

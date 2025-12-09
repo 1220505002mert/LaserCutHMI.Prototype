@@ -2,7 +2,7 @@
 
 namespace LaserCutHMI.Prototype.Models
 {
-    // JSON yapısı
+   
     public class ThicknessRange
     {
         public int Min { get; set; }
@@ -12,7 +12,7 @@ namespace LaserCutHMI.Prototype.Models
 
     public class CuttingRules
     {
-        // materials -> gas -> list of ranges
+        
         public Dictionary<string, Dictionary<string, List<ThicknessRange>>> Materials { get; set; }
             = new();
     }

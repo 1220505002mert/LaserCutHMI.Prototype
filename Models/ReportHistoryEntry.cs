@@ -16,7 +16,7 @@ namespace LaserCutHMI.Prototype.Models
         public string MetadataHash { get; set; } = "";
         public string? PreviousHash { get; set; }
 
-        // Açılır liste (ComboBox) için 'ToString' metodunu eziyoruz (override)
+        
         public override string ToString()
         {
             return $"{Timestamp:dd.MM.yyyy HH:mm:ss} - {ReportType} Raporu";
