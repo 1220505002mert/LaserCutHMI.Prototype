@@ -181,7 +181,7 @@ namespace LaserCutHMI.Prototype.Services
             return rows;
         }
 
-        // ---- Mevcut Kod (Değişmedi) ----
+      
         private class ParamDto
         {
             public Material Material { get; set; }
@@ -194,7 +194,7 @@ namespace LaserCutHMI.Prototype.Services
             public double CuttingHeightMm { get; set; }
         }
 
-        // YENİ EKLENDİ (ADIM 9.B) - QuestPDF Mantığı Düzeltildi
+       
         public byte[] GenerateAnalysisPdf(List<JobLogEntry> data, DateTime from, DateTime to, double avgDuration, double totalCut)
         {
             QuestPDF.Settings.License = LicenseType.Community;
@@ -205,7 +205,7 @@ namespace LaserCutHMI.Prototype.Services
                 {
                     page.Margin(50);
 
-                    // Başlık
+                    
                     page.Header().Text(text =>
                     {
                         text.Span($"Analiz Raporu: {from:dd.MM.yyyy} - {to:dd.MM.yyyy}")
@@ -214,7 +214,7 @@ namespace LaserCutHMI.Prototype.Services
 
                     page.Content().Column(col =>
                     {
-                        // Özet Kartlar (DÜZELTME: CS0023 - .PaddingBottom() 'Item'a taşındı)
+                        
                         col.Item().PaddingBottom(10).Text(text =>
                         {
                             text.Span("Özet İstatistikler").SemiBold().FontSize(16);
@@ -242,7 +242,7 @@ namespace LaserCutHMI.Prototype.Services
                                 columns.RelativeColumn(2); // Kesim
                             });
 
-                            // Tablo Başlığı (Header) (DÜZELTME: CS1061 - .Apply() kaldırıldı, stiller doğrudan eklendi)
+                            
                             table.Header(header =>
                             {
                                 header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Zaman");
@@ -252,7 +252,7 @@ namespace LaserCutHMI.Prototype.Services
                                 header.Cell().Background(Colors.Grey.Lighten1).Padding(5).Text("Kesim (mm)");
                             });
 
-                            // Tablo İçeriği (DÜZELTME: CS1061 - .Apply() kaldırıldı, stiller doğrudan eklendi)
+                            
                             foreach (var item in data)
                             {
                                 table.Cell().BorderBottom(1).BorderColor(Colors.Grey.Lighten2).Padding(5).Text(item.When.ToString("dd.MM HH:mm"));

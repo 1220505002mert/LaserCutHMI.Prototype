@@ -5,9 +5,7 @@ using System.Windows.Media;
 
 namespace LaserCutHMI.Prototype.Converters
 {
-    /// <summary>
-    /// Basınç rengi: &lt;5 sarı, 5–12 yeşil, &gt;12 kırmızı.
-    /// </summary>
+    
     public class PressureToBrushConverter : IValueConverter
     {
         private static readonly SolidColorBrush Yellow = new SolidColorBrush(Colors.Gold);

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic; // Dictionary için gerekli
 using System.IO;
 using System.Text.Json;
 
@@ -7,12 +8,20 @@ namespace LaserCutHMI.Prototype.Services
     public interface IPreferencesService
     {
         string? LastNcPath { get; set; }
+        
+        Dictionary<string, double> GasLevels { get; set; }
         void Save();
     }
 
     public class PreferencesService : IPreferencesService
     {
-        private class Prefs { public string? LastNcPath { get; set; } }
+        private class Prefs
+        {
+            public string? LastNcPath { get; set; }
+            
+            public Dictionary<string, double> GasLevels { get; set; } = new();
+        }
+
         private readonly string _dir;
         private readonly string _file;
         private Prefs _prefs = new();
@@ -27,6 +36,8 @@ namespace LaserCutHMI.Prototype.Services
                 {
                     var json = File.ReadAllText(_file);
                     _prefs = JsonSerializer.Deserialize<Prefs>(json) ?? new Prefs();
+                    
+                    if (_prefs.GasLevels == null) _prefs.GasLevels = new Dictionary<string, double>();
                 }
             }
             catch { _prefs = new Prefs(); }
@@ -36,6 +47,13 @@ namespace LaserCutHMI.Prototype.Services
         {
             get => _prefs.LastNcPath;
             set { _prefs.LastNcPath = value; Save(); }
+        }
+
+        
+        public Dictionary<string, double> GasLevels
+        {
+            get => _prefs.GasLevels;
+            set { _prefs.GasLevels = value; Save(); }
         }
 
         public void Save()

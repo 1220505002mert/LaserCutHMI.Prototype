@@ -266,10 +266,11 @@ namespace LaserCutHMI.Prototype.Services
             using var conn = new SqliteConnection(_connStr);
             conn.Open();
             var cmd = conn.CreateCommand();
+
             cmd.CommandText = @"
-                SELECT Id, Timestamp, ReportType 
-                FROM ReportHistory
-                ORDER BY Timestamp DESC;"; // En yeniden eskiye
+        SELECT Id, Timestamp, ReportType, ReportHash 
+        FROM ReportHistory
+        ORDER BY Timestamp DESC;";
 
             using var r = cmd.ExecuteReader();
             while (r.Read())
@@ -278,13 +279,14 @@ namespace LaserCutHMI.Prototype.Services
                 {
                     Id = r.GetInt32(0),
                     Timestamp = DateTime.Parse(r.GetString(1)),
-                    ReportType = r.GetString(2)
+                    ReportType = r.GetString(2),
+                    ReportHash = r.GetString(3) // DÜZELTME: Hash değeri okundu
                 });
             }
             return list;
         }
 
-        
+
         public ReportHistoryEntry? GetReportHistoryEntry(int id)
         {
             using var conn = new SqliteConnection(_connStr);

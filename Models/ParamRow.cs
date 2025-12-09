@@ -1,6 +1,6 @@
 ﻿namespace LaserCutHMI.Prototype.Models
 {
-    // Dışa aktar / içe aktar için satır yapısı
+    
     public class ParamRow
     {
         public Material Material { get; set; }

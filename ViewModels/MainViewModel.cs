@@ -113,6 +113,15 @@ namespace LaserCutHMI.Prototype.ViewModels
         private double _laserPowerLive;
         public double LaserPowerLive { get => _laserPowerLive; set => Set(ref _laserPowerLive, value); }
 
+        private double _headTemp = 246.0; // Lazer Başlık Sıcaklığı
+        public double HeadTemp { get => _headTemp; set => Set(ref _headTemp, value); }
+
+        private double _insideTemp = 39.0; // Makine İçi Sıcaklık
+        public double InsideTemp { get => _insideTemp; set => Set(ref _insideTemp, value); }
+
+        private double _outsideTemp = 21.0; // Dış Ortam Sıcaklığı
+        public double OutsideTemp { get => _outsideTemp; set => Set(ref _outsideTemp, value); }
+
         private double _xPos;
         public double XPos { get => _xPos; set => Set(ref _xPos, value); }
 
@@ -166,8 +175,30 @@ namespace LaserCutHMI.Prototype.ViewModels
         public DateTime AnalizBitis
         {
             get => _analizBitis;
-            set { if (Set(ref _analizBitis, value)) LoadAnalizData(true); } // Değiştiğinde sorguyu tetikle
+            set { if (Set(ref _analizBitis, value)) LoadAnalizData(true); } 
         }
+
+        private DateTime CombineDateAndTime(DateTime date, string timeStr)
+        {
+            if (TimeSpan.TryParse(timeStr, out var ts))
+            {
+                return date.Date + ts;
+            }
+            return date.Date; // Hatalı format girilirse sadece tarihi (00:00) al
+        }
+
+        private string _ozetBaslangicSaat = "00:00";
+        public string OzetBaslangicSaat { get => _ozetBaslangicSaat; set => Set(ref _ozetBaslangicSaat, value); }
+
+        private string _ozetBitisSaat = "23:59";
+        public string OzetBitisSaat { get => _ozetBitisSaat; set => Set(ref _ozetBitisSaat, value); }
+
+        private string _analizBaslangicSaat = "00:00";
+        public string AnalizBaslangicSaat { get => _analizBaslangicSaat; set => Set(ref _analizBaslangicSaat, value); }
+
+        private string _analizBitisSaat = "23:59";
+        public string AnalizBitisSaat { get => _analizBitisSaat; set => Set(ref _analizBitisSaat, value); }
+
 
         private double _analizToplamKesim;
         public double AnalizToplamKesim { get => _analizToplamKesim; set => Set(ref _analizToplamKesim, value); }
@@ -285,6 +316,23 @@ namespace LaserCutHMI.Prototype.ViewModels
             Checks.Tanks.Add(new GasTank { Gas = Gas.Air, Connected = true, LevelPercent = 100 });
             Checks.Tanks.Add(new GasTank { Gas = Gas.Oxygen, Connected = true, LevelPercent = 100 });
             Checks.Tanks.Add(new GasTank { Gas = Gas.Nitrogen, Connected = true, LevelPercent = 100 });
+
+            if (_prefs.GasLevels != null)
+            {
+                foreach (var tank in Checks.Tanks)
+                {
+                    string key = tank.Gas.ToString();
+                    if (_prefs.GasLevels.ContainsKey(key))
+                    {
+                        tank.LevelPercent = _prefs.GasLevels[key];
+                    }
+                    else
+                    {
+                        
+                        _prefs.GasLevels[key] = tank.LevelPercent;
+                    }
+                }
+            }
 
             NavigateCmd = new RelayCommand(NavigateTo);
             OpenNcCmd = new RelayCommand(_ => OpenNc());
@@ -502,6 +550,13 @@ namespace LaserCutHMI.Prototype.ViewModels
                     {
                         tank.LevelPercent = 100;
                         tank.Connected = true;
+
+                        if (_prefs.GasLevels != null)
+                        {
+                            _prefs.GasLevels[tank.Gas.ToString()] = 100.0;
+                            _prefs.Save();
+                        }
+
                         AddEvent("Gas", "INFO", $"{gas} tüpü %100 olarak değiştirildi.");
                         UpdateDerived();
                     }
@@ -557,13 +612,43 @@ namespace LaserCutHMI.Prototype.ViewModels
         private void Stop()
         {
             if (!_isRunning) return;
-            _timer.Stop();
-            _isPaused = true;
-            Status = "Stopped";
-            IsSimPressed = false;
-            AddEvent("Stop", "WARN", "Stopped by operator.");
 
+            _timer.Stop();
+            _isRunning = false;
+            _isPaused = false;
+            IsSimPressed = false;
+            Status = "Stopped";
+            _prefs.Save();
+
+
+            if (!_simOnly && JobElapsedSec > 0 && JobCutMm > 0)
+            {
+                try
+                {
+                    var jobLog = new JobLogEntry
+                    {
+                        When = DateTime.Now,
+                        NcName = Path.GetFileName(NcPath) ?? "N/A",
+                        Material = SelectedMaterial,
+                        Gas = SelectedGas,
+                        ThicknessMm = SelectedThickness,
+                        DurationSec = JobElapsedSec,
+                        CutLengthMm = JobCutMm
+                    };
+
+                    _paramStore.LogProductionJob(jobLog);
+                    AddEvent("Database", "INFO", "Üretim özeti veritabanına kaydedildi. (Stop ile)");
+                }
+                catch (Exception ex)
+                {
+                    AddEvent("Database", "ERROR", $"Özet kaydı hatası (Stop): {ex.Message}");
+                }
+            }
+
+            AddEvent("Stop", "WARN", "Stopped by operator.");
             _auditLog.Log("WARN", "Job.Stop", "İş operatör tarafından durduruldu.", _sessionService.CurrentUser, _sessionService.CurrentRole);
+
+           
         }
 
         private void Resume()
@@ -690,6 +775,12 @@ namespace LaserCutHMI.Prototype.ViewModels
                 if (tank.Connected)
                 {
                     tank.LevelPercent = Math.Max(0, tank.LevelPercent - percPerSec * TickSeconds);
+
+                    if (_prefs.GasLevels != null)
+                    {
+                        _prefs.GasLevels[tank.Gas.ToString()] = tank.LevelPercent;
+                    }
+
                     if (tank.LevelPercent <= 5)
                     {
                         AddEvent("Gas", "WARN", "Gaz seviyesi %5 altına indi. Süreç durduruldu.");
@@ -702,34 +793,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             if (!_simOnly && NcLines.Count > 0)
                 CurrentLine = Math.Min(NcLines.Count, CurrentLine + 1);
 
-            if (!_simOnly && JobElapsedSec >= 50)
-            {
-                _timer.Stop();
-                _isRunning = false;
-                _isPaused = false;
-                Status = "Completed";
-                AddEvent("Runtime", "INFO", "Job completed.");
-
-                try
-                {
-                    var jobLog = new JobLogEntry
-                    {
-                        When = DateTime.Now,
-                        NcName = Path.GetFileName(NcPath) ?? "N/A",
-                        Material = SelectedMaterial,
-                        Gas = SelectedGas,
-                        ThicknessMm = SelectedThickness,
-                        DurationSec = JobElapsedSec,
-                        CutLengthMm = JobCutMm
-                    };
-                    _paramStore.LogProductionJob(jobLog);
-                    AddEvent("Database", "INFO", "Üretim özeti veritabanına kaydedildi.");
-                }
-                catch (Exception ex)
-                {
-                    AddEvent("Database", "ERROR", $"Özet kaydı hatası: {ex.Message}");
-                }
-            }
+            
         }
 
         private void AddEvent(string source, string level, string message)
@@ -748,8 +812,11 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void LoadOzetData()
         {
+
+            DateTime start = CombineDateAndTime(OzetBaslangic, OzetBaslangicSaat);
+            DateTime end = CombineDateAndTime(OzetBitis, OzetBitisSaat);
             // Cache için benzersiz bir anahtar oluştur
-            string cacheKey = $"Ozet_{OzetBaslangic:yyyyMMdd}_{OzetBitis:yyyyMMdd}";
+            string cacheKey = $"Ozet_{start:yyyyMMddHHmm}_{end:yyyyMMddHHmm}";
 
             // 1. Önce Cache'i kontrol et
             if (_cache.TryGet<List<JobLogEntry>>(cacheKey, out var cachedData))
@@ -776,7 +843,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
             try
             {
-                var data = _paramStore.GetProductionHistory(OzetBaslangic, OzetBitis.AddDays(1));
+                var data = _paramStore.GetProductionHistory(start, end);
 
                 OzetUretimKayitlari.Clear();
                 if (data == null || data.Count == 0)
@@ -882,8 +949,11 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void PerformLoadAnalizData()
         {
+
+            DateTime start = CombineDateAndTime(AnalizBaslangic, AnalizBaslangicSaat);
+            DateTime end = CombineDateAndTime(AnalizBitis, AnalizBitisSaat);
             // Cache için benzersiz bir anahtar oluştur
-            string cacheKey = $"Analiz_{AnalizBaslangic:yyyyMMdd}_{AnalizBitis:yyyyMMdd}";
+            string cacheKey = $"Analiz_{start:yyyyMMddHHmm}_{end:yyyyMMddHHmm}";
 
             // 1. Önce Cache'i kontrol et
             if (_cache.TryGet<List<JobLogEntry>>(cacheKey, out var cachedData))
@@ -908,7 +978,7 @@ namespace LaserCutHMI.Prototype.ViewModels
             // 2. Cache'de yoksa Veritabanına git (Mevcut kodumuz)
             try
             {
-                var data = _paramStore.GetProductionHistory(AnalizBaslangic, AnalizBitis.AddDays(1));
+                var data = _paramStore.GetProductionHistory(start, end);
 
                 if (data == null || data.Count == 0)
                 {
@@ -976,7 +1046,10 @@ namespace LaserCutHMI.Prototype.ViewModels
 
         private void ExportAnalizToPdf()
         {
-            var data = _paramStore.GetProductionHistory(AnalizBaslangic, AnalizBitis.AddDays(1));
+            DateTime start = CombineDateAndTime(AnalizBaslangic, AnalizBaslangicSaat);
+            DateTime end = CombineDateAndTime(AnalizBitis, AnalizBitisSaat);
+
+            var data = _paramStore.GetProductionHistory(start, end);
             if (data == null || data.Count == 0)
             {
                 AddEvent("Rapor", "WARN", "Raporlanacak veri bulunamadı.");
@@ -1002,7 +1075,8 @@ namespace LaserCutHMI.Prototype.ViewModels
 
                 var dlg = new SaveFileDialog
                 {
-                    FileName = $"AnalizRaporu_{AnalizBaslangic:yyyy-MM-dd}_{AnalizBitis:yyyy-MM-dd}.pdf",
+                    
+                    FileName = $"AnalizRaporu_{AnalizBaslangic:yyyy-MM-dd}_{AnalizBitis:yyyy-MM-dd}_{DateTime.Now:HH-mm-ss}.pdf",
                     Filter = "PDF Dosyaları (*.pdf)|*.pdf"
                 };
 

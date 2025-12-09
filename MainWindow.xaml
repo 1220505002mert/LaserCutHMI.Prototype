@@ -176,6 +176,7 @@
                         <ProgressBar Minimum="0" Maximum="100" Width="180" Height="12" Value="{Binding Checks.Tanks[1].LevelPercent}" Margin="8,0,0,0"/>
                         <TextBlock Text="{Binding Checks.Tanks[1].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
                     </StackPanel>
+                    
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,8">
                         <TextBlock Text="Nitrogen" Width="70"/>
                         <TextBlock Text="{Binding Checks.Tanks[2].Connected}" Width="60"/>
@@ -445,6 +446,12 @@
                             <ProgressBar Minimum="0" Maximum="100" Width="160" Height="12" Value="{Binding Checks.Tanks[1].LevelPercent}" Margin="8,0,0,0"/>
                             <TextBlock Text="{Binding Checks.Tanks[1].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
                         </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,3,0,3">
+                            <TextBlock Text="Test" Width="70"/>
+                            <TextBlock Text="{Binding Checks.Tanks[1].Connected}" Width="60"/>
+                            <ProgressBar Minimum="0" Maximum="100" Width="160" Height="12" Value="{Binding Checks.Tanks[1].LevelPercent}" Margin="8,0,0,0"/>
+                            <TextBlock Text="{Binding Checks.Tanks[1].LevelPercent, StringFormat={}{0:F1}%}" Margin="8,0,0,0"/>
+                        </StackPanel>
                         <StackPanel Orientation="Horizontal" Margin="0,3,0,8">
                             <TextBlock Text="Nitrogen" Width="70"/>
                             <TextBlock Text="{Binding Checks.Tanks[2].Connected}" Width="60"/>
@@ -464,9 +471,12 @@
             <DockPanel Margin="12">
                 <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,10">
                     <TextBlock Text="Başlangıç Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <DatePicker SelectedDate="{Binding OzetBaslangic}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <DatePicker SelectedDate="{Binding OzetBaslangic}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBox Text="{Binding OzetBaslangicSaat}" Width="50" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Saat (HH:mm)"/>
+                    
                     <TextBlock Text="Bitiş Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                    <DatePicker SelectedDate="{Binding OzetBitis}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                    <DatePicker SelectedDate="{Binding OzetBitis}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <TextBox Text="{Binding OzetBitisSaat}" Width="50" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Saat (HH:mm)"/>
                     <Button Content="Veri Getir" 
                             Command="{Binding LoadOzetDataCmd}" 
                             Padding="12,6" FontWeight="Bold"/>
@@ -557,9 +567,12 @@
                 <StackPanel DockPanel.Dock="Top" Orientation="Vertical">
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <TextBlock Text="Başlangıç Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <DatePicker SelectedDate="{Binding AnalizBaslangic}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <DatePicker SelectedDate="{Binding AnalizBaslangic}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Text="{Binding AnalizBaslangicSaat}" Width="50" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Saat (HH:mm)"/>
+
                         <TextBlock Text="Bitiş Tarihi:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <DatePicker SelectedDate="{Binding AnalizBitis}" VerticalAlignment="Center" Margin="0,0,15,0"/>
+                        <DatePicker SelectedDate="{Binding AnalizBitis}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <TextBox Text="{Binding AnalizBitisSaat}" Width="50" VerticalAlignment="Center" Margin="0,0,15,0" ToolTip="Saat (HH:mm)"/>
                         <Button Content="Veri Getir" 
                                 Command="{Binding LoadAnalizDataCmd}" 
                                 Padding="12,6" FontWeight="Bold" Margin="0,0,5,0"/>
